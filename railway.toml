@@ -1,0 +1,10 @@
+[build]
+builder = "nixpacks"
+
+[build.nixpacks]
+install_cmd = "npm ci"
+build_cmd = "npm run build && cp -r src/data dist/data"
+
+[deploy]
+startCommand = "node dist/index.js"
+restartPolicyType = "always"
