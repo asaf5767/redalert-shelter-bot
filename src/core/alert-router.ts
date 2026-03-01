@@ -13,7 +13,7 @@
  * - Sends "safe to leave" only when ALL active cities clear for a group
  */
 
-import { RedAlertEvent } from '../types';
+import { RedAlertEvent, GroupConfig } from '../types';
 import * as groupConfig from './group-config';
 import { sendGroupMessage } from '../services/whatsapp';
 import { logAlert } from '../services/supabase';
@@ -77,6 +77,13 @@ function isDuplicate(groupId: string, eventType: string, cities: string[]): bool
  * 5. Log the alert to the database
  */
 export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
+  // Aggregate: collect all new cities per group across all alerts in this batch
+  // Key: groupId, Value: { config, newCities, alertType }
+  const groupBatch = new Map<
+    string,
+    { config: GroupConfig; newCities: string[]; alertType: string }
+  >();
+
   for (const alert of alerts) {
     log.info(
       { type: alert.type, cities: alert.cities },
@@ -106,8 +113,6 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
       continue;
     }
 
-    const groupsNotified: string[] = [];
-
     for (const { config, matchedCities } of matchingGroups) {
       // Get or create the shelter set for this group
       let shelter = activeShelters.get(config.groupId);
@@ -121,46 +126,64 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
         (city) => !shelter!.has(city.toLowerCase())
       );
 
-      if (newCities.length === 0) {
-        log.debug(
-          { groupId: config.groupId, matchedCities },
-          'Group already sheltering for these cities - skipping'
-        );
-        continue;
-      }
+      if (newCities.length === 0) continue;
 
       // Add new cities to active shelter tracking
       for (const city of newCities) {
         shelter.add(city.toLowerCase());
       }
 
-      // Build and send the shelter message
-      const message = buildAlertMessage(alert, newCities, config.language);
-
-      log.info(
-        {
-          groupId: config.groupId,
-          groupName: config.groupName,
-          newCities,
-        },
-        'Sending shelter alert to group'
-      );
-
-      await sendGroupMessage(config.groupId, message);
-      groupsNotified.push(config.groupId);
+      // Aggregate into the batch for this group
+      const existing = groupBatch.get(config.groupId);
+      if (existing) {
+        // Add new cities that aren't already in the batch
+        for (const city of newCities) {
+          if (!existing.newCities.includes(city)) {
+            existing.newCities.push(city);
+          }
+        }
+      } else {
+        groupBatch.set(config.groupId, {
+          config,
+          newCities: [...newCities],
+          alertType: alert.type,
+        });
+      }
     }
+  }
 
-    // Log the alert to database
-    if (groupsNotified.length > 0) {
-      await logAlert({
-        alertType: alert.type,
-        cities: alert.cities,
-        instructions: alert.instructions,
-        groupsNotified,
-        eventType: 'alert',
-        rawData: alert,
-      });
-    }
+  // Now send one message per group with all aggregated cities
+  const groupsNotified: string[] = [];
+
+  for (const [groupId, { config, newCities, alertType }] of groupBatch) {
+    const fakeAlert: RedAlertEvent = {
+      type: alertType,
+      cities: newCities,
+      instructions: '',
+    };
+
+    const message = buildAlertMessage(fakeAlert, newCities, config.language);
+
+    log.info(
+      { groupId, groupName: config.groupName, newCities },
+      'Sending aggregated shelter alert to group'
+    );
+
+    await sendGroupMessage(groupId, message);
+    groupsNotified.push(groupId);
+  }
+
+  // Log once
+  if (groupsNotified.length > 0) {
+    const allCities = [...new Set(alerts.flatMap((a) => a.cities))];
+    await logAlert({
+      alertType: alerts[0]?.type || 'unknown',
+      cities: allCities,
+      instructions: alerts[0]?.instructions || '',
+      groupsNotified,
+      eventType: 'alert',
+      rawData: alerts,
+    });
   }
 }
 
