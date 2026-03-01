@@ -58,9 +58,6 @@ const log = createLogger('commands');
  * 2. Echo triggers: "אקו ...", "echo ...", @mention the bot, or reply to the bot's message
  */
 export async function handleMessage(message: IncomingMessage): Promise<void> {
-  // Only process group messages
-  if (!message.isGroup) return;
-
   const body = message.body.trim();
 
   // Check for Echo triggers (natural language AI invocation)
@@ -74,6 +71,18 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
     }
     const lang = config?.language || 'he';
     await handleAsk(message.chatId, echoQuestion, lang, message.senderName, message.messageKey);
+    return;
+  }
+
+  // In personal chats, every non-command message is implicitly directed at the bot
+  if (!message.isGroup && !body.startsWith('!')) {
+    let config = groupConfig.getGroupConfig(message.chatId);
+    if (!config) {
+      await groupConfig.approveGroup(message.chatId);
+      config = groupConfig.getGroupConfig(message.chatId);
+    }
+    const lang = config?.language || 'he';
+    await handleAsk(message.chatId, body, lang, message.senderName, message.messageKey);
     return;
   }
 
@@ -473,7 +482,7 @@ async function handleAsk(
       body: fullResponse,
       timestamp: Math.floor(Date.now() / 1000),
       from_me: true,
-      is_group: true,
+      is_group: groupId.endsWith('@g.us'),
       is_content: true,
     }).catch(() => {}); // Fire and forget
   } catch (err) {
