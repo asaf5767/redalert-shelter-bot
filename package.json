@@ -9,9 +9,16 @@
     "dev": "npx ts-node src/index.ts",
     "clean": "rm -rf dist"
   },
-  "keywords": ["whatsapp", "redalert", "shelter", "israel", "alerts"],
+  "keywords": [
+    "whatsapp",
+    "redalert",
+    "shelter",
+    "israel",
+    "alerts"
+  ],
   "license": "MIT",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.39.0",
     "@whiskeysockets/baileys": "^6.7.21",
     "dotenv": "^16.3.1",

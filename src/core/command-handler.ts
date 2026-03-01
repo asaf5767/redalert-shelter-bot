@@ -35,6 +35,7 @@ import {
   msgLanguageChanged,
   buildTestAlertMessage,
 } from '../utils/messages';
+import { askAI, isAIEnabled } from '../services/ai';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('commands');
@@ -117,6 +118,11 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
 
     case '!help':
       await handleHelp(message.chatId, lang);
+      break;
+
+    case '!ask':
+    case '!ai':
+      await handleAsk(message.chatId, args, lang);
       break;
 
     default:
@@ -381,6 +387,46 @@ async function handleHelp(
   lang: 'he' | 'en'
 ): Promise<void> {
   await sendGroupMessage(groupId, msgHelp(lang));
+}
+
+/**
+ * !ask <question>
+ * Ask the AI (Google Gemini) a question in natural language.
+ */
+async function handleAsk(
+  groupId: string,
+  args: string,
+  lang: 'he' | 'en'
+): Promise<void> {
+  if (!isAIEnabled()) {
+    const msg =
+      lang === 'he'
+        ? '❌ תכונת ה-AI לא מופעלת על השרת.'
+        : '❌ AI feature is not enabled on this server.';
+    await sendGroupMessage(groupId, msg);
+    return;
+  }
+
+  if (!args) {
+    const hint =
+      lang === 'he'
+        ? '🤖 מה אתה רוצה לשאול? דוגמה: *!ask כמה זמן נשארים במרחב מוגן?*'
+        : '🤖 What do you want to ask? Example: *!ask how long should I stay in the shelter?*';
+    await sendGroupMessage(groupId, hint);
+    return;
+  }
+
+  try {
+    const response = await askAI(args);
+    await sendGroupMessage(groupId, `🤖 ${response}`);
+  } catch (err) {
+    log.error({ err }, 'AI request failed');
+    const errMsg =
+      lang === 'he'
+        ? '❌ אופס, ה-AI לא הצליח לענות. נסה שוב.'
+        : '❌ Oops, AI failed to respond. Try again.';
+    await sendGroupMessage(groupId, errMsg);
+  }
 }
 
 // =====================
