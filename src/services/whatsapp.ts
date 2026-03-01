@@ -19,7 +19,7 @@ import { Boom } from '@hapi/boom';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const qrcode = require('qrcode-terminal');
 import pino from 'pino';
-import { useSupabaseAuthState } from './supabase';
+import { useSupabaseAuthState, saveMessage, WhatsAppMessageRow } from './supabase';
 import { createLogger } from '../utils/logger';
 import { MessageHandler, IncomingMessage } from '../types';
 
@@ -174,7 +174,25 @@ export async function connectToWhatsApp(
       const body = getMessageBody(message);
 
       // Skip bot's own messages
-      if (message.key.fromMe) continue;
+      if (message.key.fromMe) {
+        // Still save bot's outgoing messages for conversation history
+        if (chatId && body) {
+          saveMessage({
+            id: message.key.id || `bot-${Date.now()}`,
+            chat_id: chatId,
+            chat_name: null,
+            sender_name: 'Echo',
+            sender_number: sock?.user?.id?.split('@')[0]?.split(':')[0] || null,
+            message_type: 'text',
+            body,
+            timestamp: (message.messageTimestamp as number) || Math.floor(Date.now() / 1000),
+            from_me: true,
+            is_group: chatId.endsWith('@g.us'),
+            is_content: true,
+          }).catch(() => {}); // Fire and forget
+        }
+        continue;
+      }
 
       if (!chatId) continue;
 
@@ -186,6 +204,21 @@ export async function connectToWhatsApp(
       if (!body) continue;
 
       const senderJid = message.key.participant || message.key.remoteJid || '';
+
+      // Save incoming message to DB for conversation history
+      saveMessage({
+        id: message.key.id || `msg-${Date.now()}`,
+        chat_id: chatId,
+        chat_name: null,
+        sender_name: message.pushName || 'Unknown',
+        sender_number: senderJid.split('@')[0].split(':')[0],
+        message_type: 'text',
+        body,
+        timestamp: (message.messageTimestamp as number) || Math.floor(Date.now() / 1000),
+        from_me: false,
+        is_group: true,
+        is_content: true,
+      }).catch(() => {}); // Fire and forget
 
       // Build the incoming message object
       const incoming: IncomingMessage = {
