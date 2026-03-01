@@ -2,7 +2,7 @@
  * AI Service - Google Gemini integration
  *
  * Provides a simple Q&A capability via the !ask command.
- * Uses Gemini 1.5 Flash (free tier: 15 req/min, 1M tokens/day).
+ * Uses Gemini 2.5 Flash (free tier: 15 req/min, 1M tokens/day).
  *
  * Set GEMINI_API_KEY in your .env file to enable.
  * Get a free key at: https://aistudio.google.com/app/apikey
@@ -42,7 +42,7 @@ export function isAIEnabled(): boolean {
 export async function askAI(question: string): Promise<string> {
   const client = getClient();
   const model = client.getGenerativeModel({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash',
     systemInstruction: SYSTEM_PROMPT,
   });
 
