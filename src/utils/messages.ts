@@ -274,6 +274,7 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!lang* he/en - לשנות שפה
 *!status* - מה המצב שלי
 *!test* - בדיקת חיים
+*!ask* שאלה - לשאול את ה-AI כל שאלה 🤖
 *!help* - מה שאתם רואים עכשיו 😄`;
   }
   return `🤖 *Here's what I can do:*\n
@@ -285,6 +286,7 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!lang* he/en - Change language
 *!status* - How I'm doing
 *!test* - Am I alive?
+*!ask* question - Ask the AI anything 🤖
 *!help* - This thing you're reading 😄`;
 }
 
