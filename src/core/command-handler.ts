@@ -38,7 +38,7 @@ import {
   buildTestAlertMessage,
 } from '../utils/messages';
 import { askAI, isAIEnabled } from '../services/ai';
-import { getConversationHistory } from '../services/supabase';
+import { getConversationHistory, saveMessage } from '../services/supabase';
 import { createLogger } from '../utils/logger';
 import { BOT_PHONE_NUMBER } from '../config';
 
@@ -457,7 +457,24 @@ async function handleAsk(
     const history = await getConversationHistory(groupId, botNumbers, 10);
 
     const response = await askAI(args, history, senderName);
-    await sendGroupMessage(groupId, `🤖 ${response}`);
+    const fullResponse = `🤖 ${response}`;
+    await sendGroupMessage(groupId, fullResponse);
+
+    // Save bot's response to DB for conversation continuity
+    const botJidNum = getBotJid()?.split('@')[0]?.split(':')[0] || BOT_PHONE_NUMBER || 'bot';
+    saveMessage({
+      id: `echo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      chat_id: groupId,
+      chat_name: null,
+      sender_name: 'Echo',
+      sender_number: botJidNum,
+      message_type: 'text',
+      body: fullResponse,
+      timestamp: Math.floor(Date.now() / 1000),
+      from_me: true,
+      is_group: true,
+      is_content: true,
+    }).catch(() => {}); // Fire and forget
   } catch (err) {
     log.error({ err }, 'AI request failed');
     const errMsg =

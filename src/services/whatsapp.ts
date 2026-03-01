@@ -173,26 +173,9 @@ export async function connectToWhatsApp(
       const chatId = message.key.remoteJid;
       const body = getMessageBody(message);
 
-      // Skip bot's own messages
-      if (message.key.fromMe) {
-        // Still save bot's outgoing messages for conversation history
-        if (chatId && body) {
-          saveMessage({
-            id: message.key.id || `bot-${Date.now()}`,
-            chat_id: chatId,
-            chat_name: null,
-            sender_name: 'Echo',
-            sender_number: sock?.user?.id?.split('@')[0]?.split(':')[0] || null,
-            message_type: 'text',
-            body,
-            timestamp: (message.messageTimestamp as number) || Math.floor(Date.now() / 1000),
-            from_me: true,
-            is_group: chatId.endsWith('@g.us'),
-            is_content: true,
-          }).catch(() => {}); // Fire and forget
-        }
-        continue;
-      }
+      // Skip bot's own messages (emitOwnEvents is false, so this rarely fires,
+      // but keep as safety net. Bot responses are saved directly in command-handler.)
+      if (message.key.fromMe) continue;
 
       if (!chatId) continue;
 
