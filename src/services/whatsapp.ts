@@ -118,6 +118,7 @@ export async function connectToWhatsApp(
       isConnected = true;
       reconnectAttempts = 0;
       log.info('WhatsApp connected successfully!');
+      log.info({ botJid: sock?.user?.id, botLid: (sock?.user as any)?.lid }, 'Bot identity');
 
       // Send any pending messages that were queued during disconnect
       await flushPendingMessages();
@@ -375,6 +376,11 @@ export async function reactToMessage(
 /** Get the bot's own JID (for detecting mentions/replies to the bot) */
 export function getBotJid(): string | undefined {
   return sock?.user?.id;
+}
+
+/** Get the bot's LID (internal WhatsApp ID, used in replies) */
+export function getBotLid(): string | undefined {
+  return (sock?.user as any)?.lid || undefined;
 }
 
 /** Get the current socket instance (for advanced usage) */

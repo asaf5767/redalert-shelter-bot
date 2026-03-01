@@ -23,6 +23,7 @@ import {
   isWhatsAppConnected,
   getPendingMessageCount,
   getBotJid,
+  getBotLid,
   reactToMessage,
 } from '../services/whatsapp';
 import { isRedAlertConnected } from '../services/redalert';
@@ -539,16 +540,25 @@ function isBotMentioned(mentionedJids: string[]): boolean {
 
 /**
  * Check if a JID belongs to the bot.
- * Compares the number part before @ and before : to handle formats like:
- * - "972537142501@s.whatsapp.net"
- * - "972537142501:123@s.whatsapp.net"
+ * Checks against both the bot's phone JID and LID (internal WhatsApp ID).
+ * WhatsApp uses LID format in quotedParticipant for replies.
+ * - Phone JID: "972537142501@s.whatsapp.net" or "972537142501:123@s.whatsapp.net"
+ * - LID: "133088285880506@lid" or "133088285880506:59@lid"
  */
 function isBotJid(jid: string): boolean {
-  const botJid = getBotJid();
-  if (!botJid) return false;
+  const extractId = (j: string) => j.split('@')[0].split(':')[0];
+  const targetId = extractId(jid);
 
-  const extractNumber = (j: string) => j.split('@')[0].split(':')[0];
-  return extractNumber(jid) === extractNumber(botJid);
+  const botJid = getBotJid();
+  if (botJid && extractId(botJid) === targetId) return true;
+
+  const botLid = getBotLid();
+  if (botLid && extractId(botLid) === targetId) return true;
+
+  // Also check against configured phone number as fallback
+  if (BOT_PHONE_NUMBER && BOT_PHONE_NUMBER === targetId) return true;
+
+  return false;
 }
 
 /**
