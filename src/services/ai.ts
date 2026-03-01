@@ -1,41 +1,54 @@
 /**
- * AI Service - Future AI integration placeholder
+ * AI Service - Google Gemini integration
  *
- * This file is a placeholder for future AI capabilities.
- * When you're ready to add AI features, implement them here.
+ * Provides a simple Q&A capability via the !ask command.
+ * Uses Gemini 1.5 Flash (free tier: 15 req/min, 1M tokens/day).
  *
- * Potential features:
- * - Natural language city configuration ("add my area")
- * - Alert context analysis ("what's the threat level?")
- * - Smart notifications (personalized safety tips)
- * - Historical analysis ("how many alerts this week?")
- *
- * Suggested services:
- * - Groq (fast, free tier available)
- * - OpenAI (GPT-4)
- * - Anthropic Claude
- *
- * Usage pattern:
- *   import { generateResponse } from './services/ai';
- *   const response = await generateResponse(userMessage, context);
+ * Set GEMINI_API_KEY in your .env file to enable.
+ * Get a free key at: https://aistudio.google.com/app/apikey
  */
 
-// Uncomment and configure when ready to add AI:
-//
-// import Groq from 'groq-sdk';
-//
-// const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-//
-// export async function generateResponse(
-//   message: string,
-//   context?: string
-// ): Promise<string> {
-//   const completion = await groq.chat.completions.create({
-//     messages: [
-//       { role: 'system', content: 'You are a helpful shelter alert assistant.' },
-//       { role: 'user', content: message },
-//     ],
-//     model: 'llama-3.3-70b-versatile',
-//   });
-//   return completion.choices[0]?.message?.content || '';
-// }
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GEMINI_API_KEY } from '../config';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('ai');
+
+const SYSTEM_PROMPT = `אתה עוזר ידידותי של בוט התרעות בשם "Red Alert Bot".
+הבוט שולח התרעות בזמן אמת לקבוצות וואטסאפ כשיש אזעקות של פיקוד העורף בישראל.
+ענה בצורה קצרה, קלילה וידידותית - כמו חבר, לא כמו פקיד.
+אם שואלים בעברית - ענה בעברית. אם באנגלית - ענה באנגלית.
+מקסימום 5-6 משפטים בתשובה. אין צורך בכותרות או רשימות ארוכות.`;
+
+let genAI: GoogleGenerativeAI | null = null;
+
+function getClient(): GoogleGenerativeAI {
+  if (!genAI) {
+    if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured');
+    genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  }
+  return genAI;
+}
+
+/** Whether the AI feature is configured and available */
+export function isAIEnabled(): boolean {
+  return Boolean(GEMINI_API_KEY);
+}
+
+/**
+ * Send a question to Gemini and return the response text.
+ * Throws on API errors.
+ */
+export async function askAI(question: string): Promise<string> {
+  const client = getClient();
+  const model = client.getGenerativeModel({
+    model: 'gemini-1.5-flash',
+    systemInstruction: SYSTEM_PROMPT,
+  });
+
+  log.info({ question }, 'Sending question to Gemini');
+  const result = await model.generateContent(question);
+  const text = result.response.text().trim();
+  log.info({ chars: text.length }, 'Got Gemini response');
+  return text;
+}
