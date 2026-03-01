@@ -66,34 +66,14 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
     'Processing command'
   );
 
-  // !approve is admin-only and works even in unapproved groups
-  if (command === '!approve') {
-    if (!isAdmin(message.senderJid)) {
-      await sendGroupMessage(
-        message.chatId,
-        '🔒 אופס, רק מנהל הבוט יכול לאשר קבוצות.'
-      );
-      return;
-    }
-    await handleApprove(message.chatId);
-    return;
+  // Auto-create group config if it doesn't exist yet
+  let config = groupConfig.getGroupConfig(message.chatId);
+  if (!config) {
+    await groupConfig.approveGroup(message.chatId);
+    config = groupConfig.getGroupConfig(message.chatId);
   }
 
-  // All other commands require the group to be approved
-  const config = groupConfig.getGroupConfig(message.chatId);
-  if (!config || !config.enabled) {
-    // Group not approved - explain and show group ID
-    await sendGroupMessage(
-      message.chatId,
-      `👋 *היי! אני בוט התרעות מרחב מוגן* 🛡️\n\n` +
-      `הקבוצה הזו עדיין לא מופעלת.\n` +
-      `מנהל הבוט צריך לשלוח *!approve* כדי להפעיל אותי פה.\n\n` +
-      `_Group ID: ${message.chatId}_`
-    );
-    return;
-  }
-
-  const lang = config.language || 'he';
+  const lang = config?.language || 'he';
 
   // Route to the appropriate handler
   switch (command) {
@@ -148,25 +128,6 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
 // =====================
 // Command Implementations
 // =====================
-
-/**
- * !approve (admin only)
- * Approve this group to use the bot.
- */
-async function handleApprove(groupId: string): Promise<void> {
-  await groupConfig.approveGroup(groupId);
-
-  await sendGroupMessage(
-    groupId,
-    `✅ *הקבוצה מופעלת!* 🎉\n\n` +
-    `אני מוכן לעבודה 💪\n` +
-    `*!search* - חפשו עיר\n` +
-    `*!addcity* שם עיר - תוסיפו עיר למעקב\n` +
-    `*!help* - כל הפקודות`
-  );
-
-  log.info({ groupId }, 'Group approved by admin');
-}
 
 /**
  * !addcity city1, city2, city3
