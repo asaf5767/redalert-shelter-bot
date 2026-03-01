@@ -58,9 +58,6 @@ const log = createLogger('commands');
  * 2. Echo triggers: "אקו ...", "echo ...", @mention the bot, or reply to the bot's message
  */
 export async function handleMessage(message: IncomingMessage): Promise<void> {
-  // Only process group messages
-  if (!message.isGroup) return;
-
   const body = message.body.trim();
 
   // Check for Echo triggers (natural language AI invocation)
@@ -473,7 +470,7 @@ async function handleAsk(
       body: fullResponse,
       timestamp: Math.floor(Date.now() / 1000),
       from_me: true,
-      is_group: true,
+      is_group: groupId.endsWith('@g.us'),
       is_content: true,
     }).catch(() => {}); // Fire and forget
   } catch (err) {
