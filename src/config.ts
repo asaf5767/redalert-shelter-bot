@@ -40,6 +40,13 @@ export const REDALERT_TEST_ALERTS = process.env.REDALERT_TEST_ALERTS || 'missile
 export const REDALERT_SERVER = 'https://redalert.orielhaim.com';
 
 // =====================
+// AI Config
+// =====================
+
+/** Google Gemini API key (optional - enables !ask command) */
+export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+
+// =====================
 // Bot Config
 // =====================
 
