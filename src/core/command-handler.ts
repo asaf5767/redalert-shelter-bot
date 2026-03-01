@@ -472,30 +472,29 @@ async function handleAsk(
 // Helpers
 // =====================
 
-/** Echo trigger prefixes (case-insensitive) */
-const ECHO_PREFIXES = ['אקו', 'echo'];
+/** Echo trigger keywords (case-insensitive) */
+const ECHO_KEYWORDS = ['אקו', 'echo'];
 
 /**
  * Check if a message is an Echo trigger and extract the question.
  * Returns the question text, or null if not an Echo trigger.
  *
  * Triggers:
- * - "אקו מה השעה?" / "echo what time is it?"
+ * - "אקו מה השעה?" or "שמע אקו אתה מצחיק" (keyword anywhere)
  * - @mention the bot + any text
  * - Reply to a bot message + any text
  */
 function extractEchoQuestion(message: IncomingMessage): string | null {
   const body = message.body.trim();
-
-  // 1. Check for "אקו ..." or "echo ..." prefix
   const lowerBody = body.toLowerCase();
-  for (const prefix of ECHO_PREFIXES) {
-    if (lowerBody.startsWith(prefix)) {
-      const rest = body.substring(prefix.length).trim();
-      // Must have actual content after the prefix
-      if (rest.length > 0) return rest;
-      // Just "אקו" or "echo" alone — still trigger with empty (handleAsk shows hint)
-      return '';
+
+  // 1. Check if "אקו" or "echo" appears anywhere in the message
+  for (const keyword of ECHO_KEYWORDS) {
+    if (lowerBody.includes(keyword)) {
+      // Remove the keyword from the message to get the actual question
+      // Use regex to remove the keyword (case-insensitive) and clean up
+      const cleaned = body.replace(new RegExp(keyword, 'gi'), '').trim();
+      return cleaned || '';
     }
   }
 
