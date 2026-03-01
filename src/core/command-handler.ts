@@ -35,6 +35,7 @@ import {
   msgCitiesCleared,
   msgStatus,
   msgHelp,
+  msgGreeting,
   msgLanguageChanged,
   buildTestAlertMessage,
 } from '../utils/messages';
@@ -77,11 +78,16 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
   // In personal chats, every non-command message is implicitly directed at the bot
   if (!message.isGroup && !body.startsWith('!')) {
     let config = groupConfig.getGroupConfig(message.chatId);
+    const isFirstContact = !config;
     if (!config) {
       await groupConfig.approveGroup(message.chatId);
       config = groupConfig.getGroupConfig(message.chatId);
     }
     const lang = config?.language || 'he';
+    if (isFirstContact) {
+      await sendGroupMessage(message.chatId, msgGreeting(lang));
+      return;
+    }
     await handleAsk(message.chatId, body, lang, message.senderName, message.messageKey);
     return;
   }
@@ -584,4 +590,19 @@ function isAdmin(senderJid: string): boolean {
   // Extract the number/id part before @ and before :
   const phone = senderJid.split('@')[0].split(':')[0];
   return ADMIN_NUMBERS.has(phone);
+}
+
+/**
+ * Send a greeting when the bot is added to a group.
+ * Auto-approves the group and sends the greeting/help message.
+ */
+export async function handleGroupJoin(groupId: string): Promise<void> {
+  let config = groupConfig.getGroupConfig(groupId);
+  if (!config) {
+    await groupConfig.approveGroup(groupId);
+    config = groupConfig.getGroupConfig(groupId);
+  }
+  const lang = config?.language || 'he';
+  await sendGroupMessage(groupId, msgGreeting(lang));
+  log.info({ groupId }, 'Greeting sent to new group');
 }

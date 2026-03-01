@@ -33,6 +33,9 @@ const MAX_RECONNECT_ATTEMPTS = 15;
 // Message handler callback
 let messageHandler: MessageHandler | null = null;
 
+// Group-join handler callback
+let groupJoinHandler: ((groupId: string) => Promise<void>) | null = null;
+
 // Track connection readiness
 let isConnected = false;
 
@@ -57,10 +60,14 @@ const pendingMessages: Array<{ groupId: string; text: string }> = [];
  */
 export async function connectToWhatsApp(
   onConnected?: () => void,
-  onMessage?: MessageHandler
+  onMessage?: MessageHandler,
+  onGroupJoin?: (groupId: string) => Promise<void>
 ): Promise<void> {
   if (onMessage) {
     messageHandler = onMessage;
+  }
+  if (onGroupJoin) {
+    groupJoinHandler = onGroupJoin;
   }
 
   // Load auth credentials from Supabase
@@ -241,6 +248,29 @@ export async function connectToWhatsApp(
         } catch (err) {
           log.error({ err, chatId }, 'Error in message handler');
         }
+      }
+    }
+  });
+
+  // ---- Event: Group Participant Changes (detect bot being added to a group) ----
+  sock.ev.on('group-participants.update', async ({ id, participants, action }) => {
+    if (action !== 'add') return;
+    if (!groupJoinHandler) return;
+
+    const botJid = sock?.user?.id;
+    if (!botJid) return;
+
+    const botId = botJid.split('@')[0].split(':')[0];
+    const botWasAdded = participants.some(
+      (p) => p.split('@')[0].split(':')[0] === botId
+    );
+
+    if (botWasAdded) {
+      log.info({ groupId: id }, 'Bot added to group — sending greeting');
+      try {
+        await groupJoinHandler(id);
+      } catch (err) {
+        log.error({ err, groupId: id }, 'Error in group-join handler');
       }
     }
   });

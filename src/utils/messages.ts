@@ -311,3 +311,45 @@ export function msgLanguageChanged(language: 'he' | 'en'): string {
   }
   return `✅ Switched to English 🇬🇧`;
 }
+
+/** Greeting message sent when the bot joins a group or gets a first DM */
+export function msgGreeting(language: 'he' | 'en'): string {
+  if (language === 'he') {
+    return `👋 היי! אני בוט התרעות פיקוד העורף.
+
+אני מקבל התרעות בזמן אמת ושולח הודעה לקבוצה כשיש אזעקה בערים שבחרתם לעקוב אחריהן - כדי שתספיקו להגיע למרחב המוגן בזמן.
+
+*הנה מה שאני יודע לעשות:*
+
+*!addcity* עיר1, עיר2 - להוסיף ערים למעקב
+*!removecity* עיר1 - להוריד עיר מהמעקב
+*!cities* - להציג ערים במעקב
+*!search* טקסט - לחפש עיר במאגר (1,449 ערים!)
+*!clearalerts* - לנקות הכל
+*!lang* he/en - לשנות שפה
+*!status* - מה המצב שלי
+*!test* - בדיקת חיים
+*!ask* שאלה - לשאול את ה-AI כל שאלה 🤖
+*!help* - להציג הודעה זו שוב
+
+כדי להתחיל, שלחו *!addcity שם עיר* 🏠`;
+  }
+  return `👋 Hey! I'm the RedAlert shelter bot.
+
+I receive real-time alerts from Pikud HaOref and notify this chat whenever a siren fires in cities you're watching — so you have time to reach a safe room.
+
+*Here's what I can do:*
+
+*!addcity* city1, city2 - Add cities to watch
+*!removecity* city1 - Remove a city
+*!cities* - What I'm watching
+*!search* text - Search city database (1,449 cities!)
+*!clearalerts* - Clear everything
+*!lang* he/en - Change language
+*!status* - How I'm doing
+*!test* - Am I alive?
+*!ask* question - Ask the AI anything 🤖
+*!help* - Show this message again
+
+To get started, send *!addcity city name* 🏠`;
+}
