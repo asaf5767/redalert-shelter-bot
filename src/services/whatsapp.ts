@@ -183,6 +183,19 @@ export async function connectToWhatsApp(
       // Identify whether this is a group or personal chat
       const isGroup = chatId.endsWith('@g.us');
 
+      // For DMs with LID format, resolve to phone-based JID for sending replies.
+      // Baileys can't send to @lid addresses — need @s.whatsapp.net format.
+      let replyChatId = chatId;
+      if (!isGroup && chatId.endsWith('@lid')) {
+        const keyAny = message.key as any;
+        if (keyAny.senderPn) {
+          const phone = keyAny.senderPn.split('@')[0].split(':')[0];
+          replyChatId = `${phone}@s.whatsapp.net`;
+        } else if (keyAny.remoteJid && !keyAny.remoteJid.endsWith('@lid')) {
+          replyChatId = keyAny.remoteJid;
+        }
+      }
+
       // Extract text content from the message
       if (!body) continue;
 
@@ -205,7 +218,7 @@ export async function connectToWhatsApp(
 
       // Build the incoming message object
       const incoming: IncomingMessage = {
-        chatId,
+        chatId: replyChatId,
         senderJid,
         senderName: message.pushName || 'Unknown',
         body,
