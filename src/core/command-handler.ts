@@ -23,6 +23,7 @@ import {
   isWhatsAppConnected,
   getPendingMessageCount,
   getBotJid,
+  reactToMessage,
 } from '../services/whatsapp';
 import { isRedAlertConnected } from '../services/redalert';
 import { searchCities, findCity, getCityCount } from './city-database';
@@ -71,7 +72,7 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
       config = groupConfig.getGroupConfig(message.chatId);
     }
     const lang = config?.language || 'he';
-    await handleAsk(message.chatId, echoQuestion, lang, message.senderName);
+    await handleAsk(message.chatId, echoQuestion, lang, message.senderName, message.messageKey);
     return;
   }
 
@@ -144,7 +145,7 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
 
     case '!ask':
     case '!ai':
-      await handleAsk(message.chatId, args, lang, message.senderName);
+      await handleAsk(message.chatId, args, lang, message.senderName, message.messageKey);
       break;
 
     default:
@@ -419,7 +420,8 @@ async function handleAsk(
   groupId: string,
   args: string,
   lang: 'he' | 'en',
-  senderName?: string
+  senderName?: string,
+  messageKey?: IncomingMessage['messageKey']
 ): Promise<void> {
   if (!isAIEnabled()) {
     const msg =
@@ -437,6 +439,11 @@ async function handleAsk(
         : '🤖 What do you want to ask? Example: *echo how long should I stay in the shelter?*';
     await sendGroupMessage(groupId, hint);
     return;
+  }
+
+  // Instantly react to acknowledge the message
+  if (messageKey) {
+    reactToMessage(messageKey, '🤔');
   }
 
   try {

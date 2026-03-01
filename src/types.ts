@@ -102,6 +102,13 @@ export interface IncomingMessage {
   mentionedJids?: string[];
   /** If this is a reply, the JID of the original message author */
   quotedParticipant?: string;
+  /** Raw message key (for reactions) */
+  messageKey?: {
+    remoteJid: string;
+    fromMe: boolean;
+    id: string;
+    participant?: string;
+  };
 }
 
 /** Callback type for processing incoming messages */
