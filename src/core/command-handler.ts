@@ -37,7 +37,9 @@ import {
   buildTestAlertMessage,
 } from '../utils/messages';
 import { askAI, isAIEnabled } from '../services/ai';
+import { getConversationHistory } from '../services/supabase';
 import { createLogger } from '../utils/logger';
+import { BOT_PHONE_NUMBER } from '../config';
 
 const log = createLogger('commands');
 
@@ -69,7 +71,7 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
       config = groupConfig.getGroupConfig(message.chatId);
     }
     const lang = config?.language || 'he';
-    await handleAsk(message.chatId, echoQuestion, lang);
+    await handleAsk(message.chatId, echoQuestion, lang, message.senderName);
     return;
   }
 
@@ -142,7 +144,7 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
 
     case '!ask':
     case '!ai':
-      await handleAsk(message.chatId, args, lang);
+      await handleAsk(message.chatId, args, lang, message.senderName);
       break;
 
     default:
@@ -410,13 +412,14 @@ async function handleHelp(
 }
 
 /**
- * !ask <question>
- * Ask the AI (Google Gemini) a question in natural language.
+ * !ask <question> / אקו <question> / @mention / reply-to-bot
+ * Ask Echo (Google Gemini) a question with conversation context.
  */
 async function handleAsk(
   groupId: string,
   args: string,
-  lang: 'he' | 'en'
+  lang: 'he' | 'en',
+  senderName?: string
 ): Promise<void> {
   if (!isAIEnabled()) {
     const msg =
@@ -430,14 +433,23 @@ async function handleAsk(
   if (!args) {
     const hint =
       lang === 'he'
-        ? '🤖 מה אתה רוצה לשאול? דוגמה: *!ask כמה זמן נשארים במרחב מוגן?*'
-        : '🤖 What do you want to ask? Example: *!ask how long should I stay in the shelter?*';
+        ? '🤖 מה אתה רוצה לשאול? דוגמה: *אקו כמה זמן נשארים במרחב מוגן?*'
+        : '🤖 What do you want to ask? Example: *echo how long should I stay in the shelter?*';
     await sendGroupMessage(groupId, hint);
     return;
   }
 
   try {
-    const response = await askAI(args);
+    // Build bot number list for identifying bot messages in history
+    const botNumbers: string[] = [];
+    const botJid = getBotJid();
+    if (botJid) botNumbers.push(botJid.split('@')[0].split(':')[0]);
+    if (BOT_PHONE_NUMBER) botNumbers.push(BOT_PHONE_NUMBER);
+
+    // Fetch recent conversation history from Supabase
+    const history = await getConversationHistory(groupId, botNumbers, 10);
+
+    const response = await askAI(args, history, senderName);
     await sendGroupMessage(groupId, `🤖 ${response}`);
   } catch (err) {
     log.error({ err }, 'AI request failed');

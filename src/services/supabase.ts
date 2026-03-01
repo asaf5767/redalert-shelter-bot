@@ -25,6 +25,7 @@ const log = createLogger('supabase');
 const AUTH_TABLE = 'whatsapp_auth_state';
 const GROUP_CONFIG_TABLE = 'group_city_config';
 const ALERT_LOG_TABLE = 'alert_log';
+const MESSAGES_TABLE = 'whatsapp_messages';
 
 // Singleton Supabase client
 let supabase: SupabaseClient | null = null;
@@ -307,5 +308,106 @@ export async function logAlert(entry: AlertLogEntry): Promise<void> {
     }
   } catch (err) {
     log.error({ err }, 'Error logging alert');
+  }
+}
+
+// =====================
+// Message History
+// =====================
+
+/** Shape of a row in whatsapp_messages (shared with Logan bot) */
+export interface WhatsAppMessageRow {
+  id: string;
+  chat_id: string;
+  chat_name: string | null;
+  sender_name: string | null;
+  sender_number: string | null;
+  message_type: string;
+  body: string | null;
+  timestamp: number;
+  from_me: boolean;
+  is_group: boolean;
+  is_content: boolean;
+}
+
+/**
+ * Save a message to whatsapp_messages for conversation history.
+ * Uses upsert to avoid duplicates (WhatsApp message IDs are unique).
+ */
+export async function saveMessage(message: WhatsAppMessageRow): Promise<boolean> {
+  if (!supabase) return false;
+
+  try {
+    const { error } = await supabase
+      .from(MESSAGES_TABLE)
+      .upsert(message, { onConflict: 'id' });
+
+    if (error) {
+      log.error({ error: error.message, id: message.id }, 'Error saving message');
+      return false;
+    }
+    return true;
+  } catch (err) {
+    log.error({ err }, 'Error saving message');
+    return false;
+  }
+}
+
+/** Conversation message for AI context */
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  senderName?: string;
+  timestamp: number;
+}
+
+/**
+ * Get recent conversation history for a group.
+ * Returns messages in chronological order (oldest first).
+ *
+ * @param groupId - WhatsApp group JID
+ * @param botNumbers - Bot's phone numbers/LIDs to identify bot messages
+ * @param limit - Max messages to return (default 10)
+ */
+export async function getConversationHistory(
+  groupId: string,
+  botNumbers: string[],
+  limit: number = 10
+): Promise<ConversationMessage[]> {
+  if (!supabase) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from(MESSAGES_TABLE)
+      .select('sender_number, sender_name, body, timestamp, from_me')
+      .eq('chat_id', groupId)
+      .eq('is_content', true)
+      .not('body', 'is', null)
+      .order('timestamp', { ascending: false })
+      .limit(limit * 2);
+
+    if (error) {
+      log.error({ error: error.message }, 'Error getting conversation history');
+      return [];
+    }
+
+    if (!data || data.length === 0) return [];
+
+    return data
+      .filter(msg => msg.body && msg.body.trim())
+      .map(msg => {
+        const isBot = msg.from_me || (msg.sender_number && botNumbers.includes(msg.sender_number));
+        return {
+          role: isBot ? 'assistant' as const : 'user' as const,
+          content: msg.body!,
+          senderName: msg.sender_name || undefined,
+          timestamp: msg.timestamp,
+        };
+      })
+      .slice(0, limit)
+      .reverse(); // Chronological order
+  } catch (err) {
+    log.error({ err }, 'Error getting conversation history');
+    return [];
   }
 }
