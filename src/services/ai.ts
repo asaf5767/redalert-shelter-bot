@@ -2,7 +2,7 @@
  * AI Service - Google Gemini integration
  *
  * Provides Echo's AI personality via the !ask command and natural triggers.
- * Uses Gemini 2.0 Flash (free tier: 15 req/min, 1M tokens/day).
+ * Uses Gemini 2.5 Flash Lite (free tier, fast, non-thinking model).
  * Injects recent conversation as context for follow-up awareness.
  *
  * Set GEMINI_API_KEY in your .env file to enable.
@@ -81,7 +81,7 @@ export async function askAI(
 ): Promise<string> {
   const client = getClient();
   const model = client.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash-lite',
     systemInstruction: SYSTEM_PROMPT,
   });
 
