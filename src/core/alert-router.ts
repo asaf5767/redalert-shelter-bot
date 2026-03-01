@@ -96,6 +96,12 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
       continue;
     }
 
+    // endAlert coming through the general alert event - handle as end, not shelter
+    if (alert.type === 'endAlert') {
+      await handleEndAlert(alert);
+      continue;
+    }
+
     // Skip drill alerts (don't send shelter messages for drills)
     if (alert.type.endsWith('Drill')) {
       log.info({ type: alert.type }, 'Skipping drill alert');
