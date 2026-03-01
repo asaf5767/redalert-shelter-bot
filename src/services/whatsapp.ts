@@ -195,6 +195,8 @@ export async function connectToWhatsApp(
         body,
         isGroup,
         timestamp: message.messageTimestamp as number,
+        mentionedJids: getMessageMentions(message),
+        quotedParticipant: getQuotedParticipant(message),
       };
 
       // Call the message handler (command processor)
@@ -291,9 +293,33 @@ function getMessageBody(message: WAMessage): string | null {
   return null;
 }
 
+/**
+ * Extract mentioned JIDs from a message's contextInfo.
+ */
+function getMessageMentions(message: WAMessage): string[] | undefined {
+  const ctx = message.message?.extendedTextMessage?.contextInfo;
+  if (ctx?.mentionedJid && ctx.mentionedJid.length > 0) {
+    return ctx.mentionedJid;
+  }
+  return undefined;
+}
+
+/**
+ * Extract the quoted message's participant (who sent the message being replied to).
+ */
+function getQuotedParticipant(message: WAMessage): string | undefined {
+  const ctx = message.message?.extendedTextMessage?.contextInfo;
+  return ctx?.participant || undefined;
+}
+
 /** Check if WhatsApp is currently connected */
 export function isWhatsAppConnected(): boolean {
   return isConnected;
+}
+
+/** Get the bot's own JID (for detecting mentions/replies to the bot) */
+export function getBotJid(): string | undefined {
+  return sock?.user?.id;
 }
 
 /** Get the current socket instance (for advanced usage) */

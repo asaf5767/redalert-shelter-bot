@@ -22,6 +22,7 @@ import {
   sendGroupMessage,
   isWhatsAppConnected,
   getPendingMessageCount,
+  getBotJid,
 } from '../services/whatsapp';
 import { isRedAlertConnected } from '../services/redalert';
 import { searchCities, findCity, getCityCount } from './city-database';
@@ -47,13 +48,32 @@ const log = createLogger('commands');
 /**
  * Process an incoming message and execute any command.
  * This is the main message handler passed to the WhatsApp service.
+ *
+ * Supports two trigger styles:
+ * 1. Classic commands: !addcity, !help, etc.
+ * 2. Echo triggers: "אקו ...", "echo ...", @mention the bot, or reply to the bot's message
  */
 export async function handleMessage(message: IncomingMessage): Promise<void> {
   // Only process group messages
   if (!message.isGroup) return;
 
-  // Only process messages that start with "!"
   const body = message.body.trim();
+
+  // Check for Echo triggers (natural language AI invocation)
+  const echoQuestion = extractEchoQuestion(message);
+  if (echoQuestion !== null) {
+    // Auto-create group config if it doesn't exist yet
+    let config = groupConfig.getGroupConfig(message.chatId);
+    if (!config) {
+      await groupConfig.approveGroup(message.chatId);
+      config = groupConfig.getGroupConfig(message.chatId);
+    }
+    const lang = config?.language || 'he';
+    await handleAsk(message.chatId, echoQuestion, lang);
+    return;
+  }
+
+  // Only process messages that start with "!"
   if (!body.startsWith('!')) return;
 
   // Parse the command and arguments
@@ -432,6 +452,69 @@ async function handleAsk(
 // =====================
 // Helpers
 // =====================
+
+/** Echo trigger prefixes (case-insensitive) */
+const ECHO_PREFIXES = ['אקו', 'echo'];
+
+/**
+ * Check if a message is an Echo trigger and extract the question.
+ * Returns the question text, or null if not an Echo trigger.
+ *
+ * Triggers:
+ * - "אקו מה השעה?" / "echo what time is it?"
+ * - @mention the bot + any text
+ * - Reply to a bot message + any text
+ */
+function extractEchoQuestion(message: IncomingMessage): string | null {
+  const body = message.body.trim();
+
+  // 1. Check for "אקו ..." or "echo ..." prefix
+  const lowerBody = body.toLowerCase();
+  for (const prefix of ECHO_PREFIXES) {
+    if (lowerBody.startsWith(prefix)) {
+      const rest = body.substring(prefix.length).trim();
+      // Must have actual content after the prefix
+      if (rest.length > 0) return rest;
+      // Just "אקו" or "echo" alone — still trigger with empty (handleAsk shows hint)
+      return '';
+    }
+  }
+
+  // 2. Check for @mention of the bot
+  if (message.mentionedJids && message.mentionedJids.length > 0 && isBotMentioned(message.mentionedJids)) {
+    // Strip the @mention from the text (it shows as @phonenumber)
+    const cleaned = body.replace(/@\d+/g, '').trim();
+    return cleaned || '';
+  }
+
+  // 3. Check for reply to a bot message
+  if (message.quotedParticipant && isBotJid(message.quotedParticipant)) {
+    return body || '';
+  }
+
+  return null;
+}
+
+/**
+ * Check if any of the mentioned JIDs belong to the bot.
+ */
+function isBotMentioned(mentionedJids: string[]): boolean {
+  return mentionedJids.some(jid => isBotJid(jid));
+}
+
+/**
+ * Check if a JID belongs to the bot.
+ * Compares the number part before @ and before : to handle formats like:
+ * - "972537142501@s.whatsapp.net"
+ * - "972537142501:123@s.whatsapp.net"
+ */
+function isBotJid(jid: string): boolean {
+  const botJid = getBotJid();
+  if (!botJid) return false;
+
+  const extractNumber = (j: string) => j.split('@')[0].split(':')[0];
+  return extractNumber(jid) === extractNumber(botJid);
+}
 
 /**
  * Check if a sender JID belongs to an admin.

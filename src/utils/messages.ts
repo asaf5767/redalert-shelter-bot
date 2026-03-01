@@ -275,7 +275,10 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!status* - מה המצב שלי
 *!test* - בדיקת חיים
 *!ask* שאלה - לשאול את ה-AI כל שאלה 🤖
-*!help* - מה שאתם רואים עכשיו 😄`;
+*אקו* שאלה - אותו דבר, רק יותר טבעי 😎
+*!help* - מה שאתם רואים עכשיו 😄
+
+💡 אפשר גם לתייג אותי או להגיב להודעה שלי ואני אענה!`;
   }
   return `🤖 *Here's what I can do:*\n
 *!addcity* city1, city2 - Add cities to watch
@@ -287,7 +290,10 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!status* - How I'm doing
 *!test* - Am I alive?
 *!ask* question - Ask the AI anything 🤖
-*!help* - This thing you're reading 😄`;
+*echo* question - Same thing, just more natural 😎
+*!help* - This thing you're reading 😄
+
+💡 You can also @mention me or reply to my message and I'll respond!`;
 }
 
 /** Error: city not found in config */

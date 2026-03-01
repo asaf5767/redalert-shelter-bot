@@ -98,6 +98,10 @@ export interface IncomingMessage {
   isGroup: boolean;
   /** The raw message timestamp */
   timestamp: number;
+  /** JIDs mentioned in the message (via @mention) */
+  mentionedJids?: string[];
+  /** If this is a reply, the JID of the original message author */
+  quotedParticipant?: string;
 }
 
 /** Callback type for processing incoming messages */
