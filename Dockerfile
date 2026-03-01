@@ -2,15 +2,22 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install ALL dependencies (including devDependencies for build)
 COPY package*.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm ci --only=production
+# Copy source code and data
+COPY src/ ./src/
+COPY tsconfig.json ./
 
-# Copy built files and data
-COPY dist/ ./dist/
-COPY src/data/ ./dist/data/
+# Build TypeScript
+RUN npm run build
+
+# Copy data files to dist
+RUN cp -r src/data dist/data
+
+# Remove devDependencies to slim down the image
+RUN npm prune --production
 
 # Start the bot
 CMD ["node", "dist/index.js"]
