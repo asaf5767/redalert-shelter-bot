@@ -29,6 +29,40 @@ const log = createLogger('alert-router');
  */
 const activeShelters = new Map<string, Set<string>>();
 
+/**
+ * Dedup: track recently sent messages to prevent duplicates.
+ * Key: "groupId:eventType:cities_sorted", Value: timestamp of last send
+ * Messages within DEDUP_WINDOW_MS of each other are considered duplicates.
+ */
+const recentMessages = new Map<string, number>();
+const DEDUP_WINDOW_MS = 60_000; // 60 seconds
+
+/**
+ * Check if a message was recently sent (within dedup window).
+ * If not, mark it as sent and return false (not a duplicate).
+ */
+function isDuplicate(groupId: string, eventType: string, cities: string[]): boolean {
+  const key = `${groupId}:${eventType}:${cities.sort().join(',')}`;
+  const now = Date.now();
+  const lastSent = recentMessages.get(key);
+
+  if (lastSent && now - lastSent < DEDUP_WINDOW_MS) {
+    log.debug({ key, ago: now - lastSent }, 'Duplicate message suppressed');
+    return true;
+  }
+
+  recentMessages.set(key, now);
+
+  // Clean up old entries every so often
+  if (recentMessages.size > 200) {
+    for (const [k, t] of recentMessages) {
+      if (now - t > DEDUP_WINDOW_MS) recentMessages.delete(k);
+    }
+  }
+
+  return false;
+}
+
 // =====================
 // Alert Handlers
 // =====================
@@ -148,6 +182,9 @@ async function handleNewsFlash(alert: RedAlertEvent): Promise<void> {
   const groupsNotified: string[] = [];
 
   for (const { config, matchedCities } of matchingGroups) {
+    // Dedup: skip if we already sent a newsFlash for these cities recently
+    if (isDuplicate(config.groupId, 'newsFlash', matchedCities)) continue;
+
     const message = buildNewsFlashMessage(matchedCities, config.language);
 
     log.info(
@@ -200,6 +237,9 @@ export async function handleEndAlert(alert: RedAlertEvent): Promise<void> {
     }
 
     if (clearedCities.length === 0) continue;
+
+    // Dedup: skip if we already sent an endAlert for these cities recently
+    if (isDuplicate(groupId, 'endAlert', clearedCities)) continue;
 
     // Get the group's config for language preference
     const config = groupConfig.getGroupConfig(groupId);
