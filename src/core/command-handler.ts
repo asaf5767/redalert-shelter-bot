@@ -74,6 +74,18 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
     return;
   }
 
+  // In personal chats, every non-command message is implicitly directed at the bot
+  if (!message.isGroup && !body.startsWith('!')) {
+    let config = groupConfig.getGroupConfig(message.chatId);
+    if (!config) {
+      await groupConfig.approveGroup(message.chatId);
+      config = groupConfig.getGroupConfig(message.chatId);
+    }
+    const lang = config?.language || 'he';
+    await handleAsk(message.chatId, body, lang, message.senderName, message.messageKey);
+    return;
+  }
+
   // Only process messages that start with "!"
   if (!body.startsWith('!')) return;
 
