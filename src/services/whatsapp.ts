@@ -180,9 +180,8 @@ export async function connectToWhatsApp(
 
       if (!chatId) continue;
 
-      // Only process group messages
+      // Identify whether this is a group or personal chat
       const isGroup = chatId.endsWith('@g.us');
-      if (!isGroup) continue;
 
       // Extract text content from the message
       if (!body) continue;
@@ -200,7 +199,7 @@ export async function connectToWhatsApp(
         body,
         timestamp: (message.messageTimestamp as number) || Math.floor(Date.now() / 1000),
         from_me: false,
-        is_group: true,
+        is_group: isGroup,
         is_content: true,
       }).catch(() => {}); // Fire and forget
 
