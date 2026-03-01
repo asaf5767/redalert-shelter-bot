@@ -230,6 +230,12 @@ export async function connectToWhatsApp(
         timestamp: message.messageTimestamp as number,
         mentionedJids: getMessageMentions(message),
         quotedParticipant: getQuotedParticipant(message),
+        messageKey: {
+          remoteJid: chatId,
+          fromMe: false,
+          id: message.key.id || '',
+          participant: message.key.participant || undefined,
+        },
       };
 
       // Call the message handler (command processor)
@@ -348,6 +354,24 @@ function getQuotedParticipant(message: WAMessage): string | undefined {
 /** Check if WhatsApp is currently connected */
 export function isWhatsAppConnected(): boolean {
   return isConnected;
+}
+
+/**
+ * React to a message with an emoji.
+ * Non-fatal — silently fails if connection is down.
+ */
+export async function reactToMessage(
+  messageKey: { remoteJid: string; fromMe: boolean; id: string; participant?: string },
+  emoji: string
+): Promise<void> {
+  if (!sock || !isConnected) return;
+  try {
+    await sock.sendMessage(messageKey.remoteJid, {
+      react: { text: emoji, key: messageKey },
+    });
+  } catch {
+    // Non-fatal — don't break the flow if reaction fails
+  }
 }
 
 /** Get the bot's own JID (for detecting mentions/replies to the bot) */
