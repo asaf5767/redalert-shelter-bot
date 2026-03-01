@@ -1,20 +1,23 @@
 /**
- * AI Service - Google Gemini integration
+ * AI Service - Groq API integration
  *
  * Provides Echo's AI personality via the !ask command and natural triggers.
- * Uses Gemini 2.5 Flash Lite (free tier, fast, non-thinking model).
- * Injects recent conversation as context for follow-up awareness.
+ * Uses Groq's OpenAI-compatible API with Llama 3.3 70B (free tier).
+ * Falls back to GPT-OSS 20B if primary model fails.
  *
- * Set GEMINI_API_KEY in your .env file to enable.
- * Get a free key at: https://aistudio.google.com/app/apikey
+ * Set GROQ_API_KEY in Railway env vars to enable.
+ * Get a free key at: https://console.groq.com
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { GEMINI_API_KEY } from '../config';
+import { GROQ_API_KEY } from '../config';
 import { ConversationMessage } from './supabase';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('ai');
+
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const PRIMARY_MODEL = 'llama-3.3-70b-versatile';
+const FALLBACK_MODEL = 'openai/gpt-oss-20b';
 
 const SYSTEM_PROMPT = `אתה אקו (Echo) — חבר חכם וקצת חצוף בקבוצת וואטסאפ ישראלית.
 
@@ -41,24 +44,54 @@ const SYSTEM_PROMPT = `אתה אקו (Echo) — חבר חכם וקצת חצוף 
 
 ענה רק על ההודעה האחרונה. ההקשר ניתן לך כרקע.`;
 
-let genAI: GoogleGenerativeAI | null = null;
-
-function getClient(): GoogleGenerativeAI {
-  if (!genAI) {
-    if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured');
-    genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  }
-  return genAI;
-}
-
 /** Whether the AI feature is configured and available */
 export function isAIEnabled(): boolean {
-  return Boolean(GEMINI_API_KEY);
+  return Boolean(GROQ_API_KEY);
+}
+
+interface GroqResponse {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
 }
 
 /**
- * Format conversation history as a readable context block.
- * This is injected as background info, NOT as chat turns.
+ * Call Groq API with a specific model.
+ */
+async function callGroqModel(
+  messages: Array<{ role: string; content: string }>,
+  model: string
+): Promise<string> {
+  const response = await fetch(GROQ_API_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${GROQ_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      max_tokens: 500,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Groq ${model} error ${response.status}: ${errorText}`);
+  }
+
+  const data = (await response.json()) as GroqResponse;
+  if (!data.choices || data.choices.length === 0) {
+    throw new Error(`Groq ${model}: no choices in response`);
+  }
+
+  return data.choices[0].message.content.trim();
+}
+
+/**
+ * Format conversation history as a context block for the user message.
  */
 function formatHistoryContext(history: ConversationMessage[]): string {
   if (!history || history.length === 0) return '';
@@ -72,9 +105,8 @@ function formatHistoryContext(history: ConversationMessage[]): string {
 }
 
 /**
- * Send a question to Gemini with conversation context and return the response.
- * Uses single-shot generateContent (fast) with history as context block.
- * Throws on API errors.
+ * Send a question to Groq and return the response.
+ * Tries primary model (Llama 3.3 70B), falls back to GPT-OSS 20B.
  *
  * @param question - The user's current message
  * @param history - Recent conversation messages for context (optional)
@@ -85,27 +117,34 @@ export async function askAI(
   history?: ConversationMessage[],
   senderName?: string
 ): Promise<string> {
-  const client = getClient();
-  const model = client.getGenerativeModel({
-    model: 'gemini-2.5-flash-lite',
-    systemInstruction: SYSTEM_PROMPT,
-  });
-
-  // Build the prompt: context block + current question
+  // Build the user message with context
   const contextBlock = formatHistoryContext(history || []);
   const senderPrefix = senderName ? `${senderName} שואל: ` : '';
-  const prompt = contextBlock
+  const userContent = contextBlock
     ? `${contextBlock}\n\n${senderPrefix}${question}`
     : `${senderPrefix}${question}`;
 
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: userContent },
+  ];
+
   log.info(
     { question, historyLength: history?.length || 0, senderName },
-    'Sending question to Gemini'
+    'Sending question to Groq'
   );
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim();
+  // Try primary model
+  try {
+    const text = await callGroqModel(messages, PRIMARY_MODEL);
+    log.info({ chars: text.length, model: PRIMARY_MODEL }, 'Got Groq response');
+    return text;
+  } catch (err) {
+    log.warn({ err, model: PRIMARY_MODEL }, 'Primary model failed, trying fallback');
+  }
 
-  log.info({ chars: text.length }, 'Got Gemini response');
+  // Try fallback model
+  const text = await callGroqModel(messages, FALLBACK_MODEL);
+  log.info({ chars: text.length, model: FALLBACK_MODEL }, 'Got Groq fallback response');
   return text;
 }

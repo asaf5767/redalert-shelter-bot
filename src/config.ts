@@ -43,7 +43,10 @@ export const REDALERT_SERVER = 'https://redalert.orielhaim.com';
 // AI Config
 // =====================
 
-/** Google Gemini API key (optional - enables !ask command) */
+/** Groq API key (enables Echo AI chat) */
+export const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+
+/** Google Gemini API key (legacy, kept for fallback) */
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 // =====================
