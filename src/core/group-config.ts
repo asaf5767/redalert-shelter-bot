@@ -93,16 +93,19 @@ export function getMatchingGroups(
     if (!config.enabled || config.cities.length === 0) continue;
 
     // Find which of this group's cities match the alert
-    // Uses substring matching: if user added "ראש העין", it matches
-    // "ראש העין", "ראש העין - מזרח", "ראש העין - מערב", etc.
+    // Matching rules:
+    // 1. Exact match: "כרמל" == "כרמל"
+    // 2. Prefix with separator: "ראש העין" matches "ראש העין - מזרח"
+    //    (group city is a prefix of alert city, followed by space/dash)
+    // 3. Suffix with separator: "ראש העין - מזרח" matches "ראש העין"
+    //    (alert city is a prefix of group city, followed by space/dash)
+    // NOT: "כרמל" should NOT match "טירת כרמל" (substring in middle)
     const matched: string[] = [];
     for (const groupCity of config.cities) {
-      const normalizedGroupCity = groupCity.trim().toLowerCase();
+      const gc = groupCity.trim().toLowerCase();
       for (let i = 0; i < normalizedAlertCities.length; i++) {
         const ac = normalizedAlertCities[i];
-        // Match if alert city contains the group city OR group city contains alert city
-        if (ac.includes(normalizedGroupCity) || normalizedGroupCity.includes(ac)) {
-          // Use the original alert city name (preserves case/Hebrew)
+        if (isCityMatch(gc, ac)) {
           if (!matched.includes(alertCities[i])) {
             matched.push(alertCities[i]);
           }
@@ -300,4 +303,41 @@ export async function setLanguage(
   });
 
   log.info({ groupId, language }, 'Language updated for group');
+}
+
+// =====================
+// Helpers
+// =====================
+
+/** Separator characters that indicate a city name boundary */
+const SEPARATORS = [' - ', ' – ', '-', ' '];
+
+/**
+ * Smart city name matching.
+ * Returns true if groupCity and alertCity refer to the same place.
+ *
+ * Rules:
+ * - Exact match: "כרמל" == "כרמל" ✅
+ * - Group is prefix: "ראש העין" matches "ראש העין - מזרח" ✅
+ * - Alert is prefix: "ראש העין - מזרח" matches "ראש העין" ✅
+ * - Substring in middle: "כרמל" does NOT match "טירת כרמל" ❌
+ */
+function isCityMatch(groupCity: string, alertCity: string): boolean {
+  // Exact match
+  if (groupCity === alertCity) return true;
+
+  // Group city is a prefix of alert city (e.g., "ראש העין" → "ראש העין - מזרח")
+  if (alertCity.startsWith(groupCity)) {
+    const rest = alertCity.substring(groupCity.length);
+    // Must be followed by a separator, not just more characters
+    if (SEPARATORS.some((sep) => rest.startsWith(sep))) return true;
+  }
+
+  // Alert city is a prefix of group city (e.g., "ראש העין - מזרח" alert, "ראש העין" group)
+  if (groupCity.startsWith(alertCity)) {
+    const rest = groupCity.substring(alertCity.length);
+    if (SEPARATORS.some((sep) => rest.startsWith(sep))) return true;
+  }
+
+  return false;
 }
