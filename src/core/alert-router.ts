@@ -15,7 +15,6 @@
 
 import { RedAlertEvent } from '../types';
 import * as groupConfig from './group-config';
-import { getCountdown } from './city-database';
 import { sendGroupMessage } from '../services/whatsapp';
 import { logAlert } from '../services/supabase';
 import { buildAlertMessage, buildEndAlertMessage, buildNewsFlashMessage } from '../utils/messages';
@@ -136,13 +135,7 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
       }
 
       // Build and send the shelter message
-      // Get the shortest countdown time among the matched cities
-      const countdowns = newCities
-        .map((c) => getCountdown(c))
-        .filter((c): c is number => c !== null);
-      const minCountdown = countdowns.length > 0 ? Math.min(...countdowns) : null;
-
-      const message = buildAlertMessage(alert, newCities, config.language, minCountdown);
+      const message = buildAlertMessage(alert, newCities, config.language);
 
       log.info(
         {

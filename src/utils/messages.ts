@@ -15,35 +15,35 @@ import { RedAlertEvent } from '../types';
 /** Fun/weird/mind-blowing facts to distract while sheltering */
 const SHELTER_TIDBITS: string[] = [
   // Mind-blowing Israel stuff
-  'ישראלים אוכלים הכי הרבה חומוס לנפש בעולם. הפתעה: גם הכי הרבה סושי במזרח התיכון 🍣',
-  'כיפת ברזל מחשבת מסלול יירוט תוך 1-3 שניות. המחשב שלך לוקח יותר זמן לפתוח Chrome 🛡️',
-  'ים המלח יורד מטר בשנה. ביום שהוא ייעלם, כבר נהיה על מאדים 🌊',
-  'USB, Waze, ICQ, דיסק-און-קי, הטפטפת, עגבניות שרי - כולם הומצאו בישראל. ארוחת הבוקר הכי חדשנית בעולם 🍅',
-  'בישראל יש יותר סטארטאפים לנפש מבכל מדינה אחרת. בפועל? יותר סטארטאפים מחניות חינם בתל אביב 🦄',
-  'הכרמלית בחיפה היא הרכבת התחתית הכי קטנה בעולם. 6 תחנות. אפשר ללכת ברגל יותר מהר אבל פחות כיף 🚇',
-  'חצי מיליארד ציפורים עוברות דרך אילת כל שנה. יותר תיירים מכנפיים מתיירים עם מזוודות 🦅',
-  'ירושלים מוזכרת 669 פעמים בתנ"ך. תל אביב? אפס. הרגשות של תל אביב: נפגעו 📖',
-  'ישראל שתלה כל כך הרבה עצים שזו המדינה היחידה שנכנסה למאה ה-21 עם יותר עצים ממה שהתחילה. ירוק עלינו 🌳',
-  'ישראל ממחזרת 90% ממי השפכים. מקום שני? ספרד עם 20%. אנחנו פשוט אחרת 💧',
+  'ישראלים אוכלים הכי הרבה חומוס לנפש בעולם. והפתעה: גם הכי הרבה סושי במזרח התיכון 🍣',
+  'כיפת ברזל מחשבת מסלול יירוט תוך 1-3 שניות. המחשב שלך לוקח יותר זמן לפתוח כרום 🛡️',
+  'ים המלח יורד מטר בשנה. עד שהוא ייעלם, כבר נהיה על מאדים 🌊',
+  'USB, Waze, ICQ, דיסק-און-קי, טפטפת, עגבניות שרי - כולם הומצאו בישראל. ארוחת הבוקר הכי חדשנית בעולם 🍅',
+  'בישראל יש יותר סטארטאפים לנפש מכל מדינה אחרת. בפועל? יותר סטארטאפים מחניות חינם בתל אביב 🦄',
+  'הכרמלית בחיפה היא הרכבת התחתית הכי קטנה בעולם. 6 תחנות. אפשר ללכת ברגל יותר מהר, אבל פחות כיף 🚇',
+  'חצי מיליארד ציפורים עוברות דרך אילת כל שנה. יותר תיירים עם כנפיים מתיירים עם מזוודות 🦅',
+  'ירושלים מוזכרת 669 פעמים בתנ"ך. תל אביב? אפס. הרגשות של ת"א נפגעו 📖',
+  'ישראל שתלה כל כך הרבה עצים שהיא המדינה היחידה שנכנסה למאה ה-21 עם יותר עצים ממה שהתחילה איתם 🌳',
+  'ישראל ממחזרת 90% ממי השפכים שלה. מקום שני? ספרד עם 20%. פשוט ליגה אחרת 💧',
 
   // Random weird & wonderful
-  'תמנונים הם בעלי 3 לבבות, דם כחול, ו-9 מוחות. בעצם, הם מוכשרים יותר מרובנו 🐙',
+  'לתמנון יש 3 לבבות, דם כחול ו-9 מוחות. בעצם, הוא מוכשר יותר מרובנו 🐙',
   'דבש לא מתקלקל לעולם. מצאו דבש בן 3,000 שנה במצרים ועדיין אפשר לאכול אותו. תאריך תפוגה? לא מכירים 🍯',
-  'כלבים יודעים להריח אם אתה עצוב. חתולים? גם יודעים. פשוט לא אכפת להם 🐕',
-  'נמלים לא ישנות לעולם. בגלל זה הן תמיד כאלה עצבניות 🐜',
+  'כלבים יודעים להריח אם עצוב לכם. חתולים? גם יודעים. פשוט לא אכפת להם 🐕',
+  'נמלים לא ישנות לעולם. אולי בגלל זה הן תמיד כזה עצבניות 🐜',
   'קואלות ישנות 22 שעות ביום. מצד שני, הן לא צריכות להכין ארוחת בוקר לילדים 🐨',
-  'הלב של שרימפס נמצא בראש. לפחות הם חושבים עם הלב, לא? 🦐',
-  'פרפרים טועמים עם הרגליים. אוקיי, זה פשוט גרוס 🦋',
-  'בננה היא טכנית סוג של פירה (berry). תות? לא. העולם הזה שקרי 🍌',
+  'הלב של שרימפס נמצא בראש שלו. לפחות הוא חושב עם הלב, לא? 🦐',
+  'פרפרים טועמים עם הרגליים. אוקיי, זה פשוט מגעיל 🦋',
+  'בננה היא מבחינה טכנית סוג של גרגר. תות שדה? דווקא לא. העולם הזה שקרי 🍌',
   'לג׳ירפה ולבן אדם יש אותו מספר חוליות צוואר: 7. אבל רק אחד מהם מרגיש מוזר עם צוואר קצר 🦒',
-  'יותר אנשים נהרגים בשנה מנפילת מכונות ממכר אוטומטיות מאשר מכרישים. המכונות מנצחות 🦈',
+  'יותר אנשים נפגעים בשנה ממכונות שתייה אוטומטיות מאשר מכרישים. המכונות מנצחות 🦈',
 
   // Existential & wholesome
-  'יש יותר כוכבים ביקום מגרגרי חול על כל חופי העולם. אתה קטן. בצורה טובה ⭐',
-  'עצי אקליפטוס משחררים שמנים שגורמים לערפל כחול. לכן הרי הכחולים באוסטרליה כחולים באמת 🏔️',
-  'הצבע הכתום קיבל את שמו מהפרי, לא להפך. לפני כן קראו לצבע "אדום-צהוב". עצלנים 🍊',
-  'תינוקות נולדים בלי עצמות ברך. הן מתפתחות אחר כך. תינוקות הם בעצם חייזרים רכים 👶',
-  'מדוזות חיות כבר 650 מיליון שנה בלי מוח, לב, או עצמות. ועדיין שורדות. מעוררות השראה 🪼',
+  'יש יותר כוכבים ביקום מגרגרי חול בכל חופי העולם ביחד. אנחנו קטנים. בצורה טובה ⭐',
+  'עצי אקליפטוס משחררים שמנים שיוצרים ערפל כחלחל. לכן ההרים הכחולים באוסטרליה באמת כחולים 🏔️',
+  'הצבע כתום קיבל את השם שלו מהפרי, לא להפך. לפני כן קראו לצבע "אדום-צהוב". עצלנים 🍊',
+  'תינוקות נולדים בלי פיקות ברך. הן מתפתחות רק אחר כך. תינוקות הם בעצם חייזרים רכים 👶',
+  'מדוזות חיות כבר 650 מיליון שנה בלי מוח, לב או עצמות. ועדיין שורדות. מעוררות השראה 🪼',
 ];
 
 /** Pick a random tidbit */
@@ -103,29 +103,22 @@ const ALERT_TYPE_NAMES_EN: Record<string, string> = {
 export function buildAlertMessage(
   alert: RedAlertEvent,
   matchedCities: string[],
-  language: 'he' | 'en',
-  countdownSeconds?: number | null
+  language: 'he' | 'en'
 ): string {
   const cities = matchedCities.join(', ');
 
   if (language === 'he') {
     const typeName = ALERT_TYPE_NAMES_HE[alert.type] || alert.type;
     let msg = `📢 *יאללה, ${typeName}*\n\n`;
-    msg += `📍 ${cities}\n`;
-    if (countdownSeconds) {
-      msg += `⏱ *${countdownSeconds} שניות* למרחב המוגן\n`;
-    }
-    msg += `\nזז למרחב ברוגע, בלי פאניקה 🙏\n\n`;
+    msg += `📍 ${cities}\n\n`;
+    msg += `זזים למרחב המוגן ברוגע, בלי פאניקה 🙏\n\n`;
     msg += `_${getRandomTidbit()}_`;
     return msg;
   } else {
     const typeName = ALERT_TYPE_NAMES_EN[alert.type] || alert.type;
     let msg = `📢 *Heads up - ${typeName}*\n\n`;
-    msg += `📍 ${cities}\n`;
-    if (countdownSeconds) {
-      msg += `⏱ *${countdownSeconds}s* to shelter\n`;
-    }
-    msg += `\nMove to your safe room, no panic 🙏\n\n`;
+    msg += `📍 ${cities}\n\n`;
+    msg += `Move to your safe room, no panic 🙏\n\n`;
     msg += `_${getRandomTidbit()}_`;
     return msg;
   }
@@ -141,10 +134,10 @@ export function buildNewsFlashMessage(
   const cities = matchedCities.join(', ');
 
   if (language === 'he') {
-    let msg = `⚡ *הדס אפ*\n\n`;
+    let msg = `⚡ *שימו לב*\n\n`;
     msg += `📍 ${cities}\n\n`;
-    msg += `יכול להיות שתהיה התרעה בקרוב.\n`;
-    msg += `כדאי להיות ליד מרחב מוגן, סתם ככה, בקול 😎`;
+    msg += `ייתכן שתישמע התרעה בדקות הקרובות.\n`;
+    msg += `כדאי להיות ליד מרחב מוגן 😎`;
     return msg;
   } else {
     let msg = `⚡ *Heads Up*\n\n`;
@@ -165,9 +158,9 @@ export function buildEndAlertMessage(
   const cities = clearedCities.join(', ');
 
   if (language === 'he') {
-    let msg = `✅ *סיימנו! אפשר לצאת* 🎉\n\n`;
+    let msg = `✅ *נגמר! אפשר לצאת* 🎉\n\n`;
     msg += `📍 ${cities}\n\n`;
-    msg += `חזרה לשגרה. שמרו על עצמכם 💙`;
+    msg += `חוזרים לשגרה. שמרו על עצמכם 💙`;
     return msg;
   } else {
     let msg = `✅ *All clear! You're free* 🎉\n\n`;
@@ -182,9 +175,9 @@ export function buildEndAlertMessage(
  */
 export function buildTestAlertMessage(language: 'he' | 'en'): string {
   if (language === 'he') {
-    return `🧪 *בדיקה בדיקה*\n\nזה סתם טסט, הכל טוב 😄\nהבוט ער ומחובר למערכת.\n\n_${getRandomTidbit()}_`;
+    return `🧪 *בדיקה בדיקה*\n\nרגוע, זה סתם טסט 😄\nהבוט ער ומחובר למערכת.\n\n_${getRandomTidbit()}_`;
   } else {
-    return `🧪 *Testing testing*\n\nJust a test, all good 😄\nBot is awake and connected.\n\n_${getRandomTidbit()}_`;
+    return `🧪 *Testing testing*\n\nRelax, just a test 😄\nBot is awake and connected.\n\n_${getRandomTidbit()}_`;
   }
 }
 
@@ -196,18 +189,18 @@ export function buildTestAlertMessage(language: 'he' | 'en'): string {
 export function msgCitiesAdded(cities: string[], language: 'he' | 'en'): string {
   const list = cities.join(', ');
   if (language === 'he') {
-    return `✅ ערים נוספו למעקב: ${list}`;
+    return `✅ נוסף למעקב: ${list}`;
   }
-  return `✅ Cities added to monitoring: ${list}`;
+  return `✅ Added to watch list: ${list}`;
 }
 
 /** Response when cities are removed from a group */
 export function msgCitiesRemoved(cities: string[], language: 'he' | 'en'): string {
   const list = cities.join(', ');
   if (language === 'he') {
-    return `✅ ערים הוסרו מהמעקב: ${list}`;
+    return `✅ הוסר מהמעקב: ${list}`;
   }
-  return `✅ Cities removed from monitoring: ${list}`;
+  return `✅ Removed from watch list: ${list}`;
 }
 
 /** Response showing the current monitored cities */
@@ -221,7 +214,7 @@ export function msgCitiesList(cities: string[], language: 'he' | 'en'): string {
 
   const list = cities.map((c, i) => `${i + 1}. ${c}`).join('\n');
   if (language === 'he') {
-    return `📋 *ערים שאני עוקב אחריהן:*\n${list}`;
+    return `📋 *ערים במעקב:*\n${list}`;
   }
   return `📋 *Cities I'm watching:*\n${list}`;
 }
@@ -250,7 +243,7 @@ export function msgStatus(
     msg += `מערכת התרעות: ${ra}\n`;
     msg += `ערים במעקב: ${cityCount}\n`;
     if (pendingMessages > 0) {
-      msg += `הודעות בתור: ${pendingMessages}\n`;
+      msg += `הודעות ממתינות: ${pendingMessages}\n`;
     }
     msg += `\n_אני ער 24/7, אל תדאגו_ 💪`;
     return msg;
@@ -273,15 +266,15 @@ export function msgStatus(
 export function msgHelp(language: 'he' | 'en'): string {
   if (language === 'he') {
     return `🤖 *הנה מה שאני יודע לעשות:*\n
-*!addcity* עיר1, עיר2 - תוסיף ערים למעקב
-*!removecity* עיר1 - תוריד עיר
-*!cities* - מה אני עוקב אחריו
-*!search* טקסט - חפש עיר במאגר (1,449 ערים!)
-*!clearalerts* - תנקה הכל
-*!lang* he/en - שנה שפה
+*!addcity* עיר1, עיר2 - להוסיף ערים למעקב
+*!removecity* עיר1 - להוריד עיר מהמעקב
+*!cities* - להציג ערים במעקב
+*!search* טקסט - לחפש עיר במאגר (1,449 ערים!)
+*!clearalerts* - לנקות הכל
+*!lang* he/en - לשנות שפה
 *!status* - מה המצב שלי
 *!test* - בדיקת חיים
-*!help* - זה, מה שאתה רואה עכשיו 😄`;
+*!help* - מה שאתם רואים עכשיו 😄`;
   }
   return `🤖 *Here's what I can do:*\n
 *!addcity* city1, city2 - Add cities to watch
@@ -298,7 +291,7 @@ export function msgHelp(language: 'he' | 'en'): string {
 /** Error: city not found in config */
 export function msgCityNotFound(city: string, language: 'he' | 'en'): string {
   if (language === 'he') {
-    return `❌ "${city}" לא במעקב. בטוח שכתבת נכון?`;
+    return `❌ "${city}" לא נמצא במעקב. בטוחים שכתבתם נכון?`;
   }
   return `❌ "${city}" isn't being monitored. Sure you spelled it right?`;
 }
