@@ -42,6 +42,7 @@ export function initSupabase(): SupabaseClient {
     throw new Error('Missing SUPABASE_URL or SUPABASE_KEY in environment');
   }
 
+  log.info({ url: SUPABASE_URL, keyPrefix: SUPABASE_KEY.substring(0, 20) + '...' }, 'Initializing Supabase');
   supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   log.info('Supabase client initialized');
   return supabase;
@@ -60,7 +61,10 @@ export function getSupabaseClient(): SupabaseClient | null {
  * Read a value from the auth state table
  */
 async function readAuthData(key: string): Promise<any | null> {
-  if (!supabase) return null;
+  if (!supabase) {
+    log.error('readAuthData: supabase client is null!');
+    return null;
+  }
 
   try {
     const { data, error } = await supabase
@@ -69,7 +73,14 @@ async function readAuthData(key: string): Promise<any | null> {
       .eq('key', key)
       .single();
 
-    if (error || !data) return null;
+    if (error) {
+      log.error({ error: error.message, code: error.code, key }, 'Supabase read error');
+      return null;
+    }
+    if (!data) {
+      log.warn({ key }, 'No data found for auth key');
+      return null;
+    }
     return JSON.parse(data.value, BufferJSON.reviver);
   } catch (err) {
     log.error({ err, key }, 'Error reading auth data');
