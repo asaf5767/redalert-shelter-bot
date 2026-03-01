@@ -71,7 +71,7 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
     if (!isAdmin(message.senderJid)) {
       await sendGroupMessage(
         message.chatId,
-        '❌ רק מנהל הבוט יכול לאשר קבוצות.\n❌ Only the bot admin can approve groups.'
+        '🔒 אופס, רק מנהל הבוט יכול לאשר קבוצות.'
       );
       return;
     }
@@ -85,9 +85,9 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
     // Group not approved - explain and show group ID
     await sendGroupMessage(
       message.chatId,
-      `👋 *שלום! אני בוט התרעות מרחב מוגן*\n\n` +
-      `הקבוצה הזו עדיין לא אושרה.\n` +
-      `מנהל הבוט צריך לשלוח *!approve* כדי להפעיל אותי כאן.\n\n` +
+      `👋 *היי! אני בוט התרעות מרחב מוגן* 🛡️\n\n` +
+      `הקבוצה הזו עדיין לא מופעלת.\n` +
+      `מנהל הבוט צריך לשלוח *!approve* כדי להפעיל אותי פה.\n\n` +
       `_Group ID: ${message.chatId}_`
     );
     return;
@@ -158,10 +158,11 @@ async function handleApprove(groupId: string): Promise<void> {
 
   await sendGroupMessage(
     groupId,
-    `✅ *הקבוצה אושרה!* 🎉\n\n` +
-    `אפשר להתחיל להשתמש בבוט.\n` +
-    `שלחו *!help* לרשימת הפקודות.\n` +
-    `שלחו *!search* כדי לחפש עיר ואז *!addcity* כדי להוסיף.`
+    `✅ *הקבוצה מופעלת!* 🎉\n\n` +
+    `אני מוכן לעבודה 💪\n` +
+    `*!search* - חפשו עיר\n` +
+    `*!addcity* שם עיר - תוסיפו עיר למעקב\n` +
+    `*!help* - כל הפקודות`
   );
 
   log.info({ groupId }, 'Group approved by admin');
