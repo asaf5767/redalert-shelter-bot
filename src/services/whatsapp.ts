@@ -316,10 +316,25 @@ function getMessageBody(message: WAMessage): string | null {
 }
 
 /**
+ * Extract contextInfo from any message type that may carry it.
+ * Replies and mentions can arrive via extendedText, ephemeral, image, video, etc.
+ */
+function getContextInfo(message: WAMessage): any | undefined {
+  const msg = message.message;
+  if (!msg) return undefined;
+
+  return msg.extendedTextMessage?.contextInfo
+    || msg.ephemeralMessage?.message?.extendedTextMessage?.contextInfo
+    || msg.imageMessage?.contextInfo
+    || msg.videoMessage?.contextInfo
+    || undefined;
+}
+
+/**
  * Extract mentioned JIDs from a message's contextInfo.
  */
 function getMessageMentions(message: WAMessage): string[] | undefined {
-  const ctx = message.message?.extendedTextMessage?.contextInfo;
+  const ctx = getContextInfo(message);
   if (ctx?.mentionedJid && ctx.mentionedJid.length > 0) {
     return ctx.mentionedJid;
   }
@@ -330,7 +345,7 @@ function getMessageMentions(message: WAMessage): string[] | undefined {
  * Extract the quoted message's participant (who sent the message being replied to).
  */
 function getQuotedParticipant(message: WAMessage): string | undefined {
-  const ctx = message.message?.extendedTextMessage?.contextInfo;
+  const ctx = getContextInfo(message);
   return ctx?.participant || undefined;
 }
 
