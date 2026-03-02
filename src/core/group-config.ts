@@ -11,7 +11,7 @@
  */
 
 import { GroupConfig, GroupConfigRow, GroupSettings } from '../types';
-import { loadGroupConfigs, saveGroupConfig } from '../services/supabase';
+import { loadGroupConfigs, saveGroupConfig, checkSettingsColumn } from '../services/supabase';
 import { getInitialGroups } from '../config';
 import { createLogger } from '../utils/logger';
 
@@ -29,6 +29,9 @@ const configs = new Map<string, GroupConfig>();
  * Loads configs from Supabase, then seeds any INITIAL_GROUPS from env.
  */
 export async function init(): Promise<void> {
+  // Verify the settings column exists (warns loudly if missing)
+  await checkSettingsColumn();
+
   // Load existing configs from database
   const rows = await loadGroupConfigs();
 

@@ -212,6 +212,49 @@ export async function useSupabaseAuthState(): Promise<{
 // =====================
 
 /**
+ * Check that the `settings` JSONB column exists on group_city_config.
+ * Logs a prominent warning with the migration SQL if it's missing.
+ * Returns true if the column exists.
+ */
+export async function checkSettingsColumn(): Promise<boolean> {
+  if (!supabase) return false;
+
+  try {
+    const { error } = await supabase
+      .from(GROUP_CONFIG_TABLE)
+      .select('settings')
+      .limit(1);
+
+    if (error) {
+      // PostgREST error 42703 = undefined_column
+      if (error.code === '42703' || error.message?.includes('settings')) {
+        log.warn(
+          '\n' +
+          '╔══════════════════════════════════════════════════════════════╗\n' +
+          '║  ⚠️  Missing "settings" column in group_city_config!       ║\n' +
+          '║                                                            ║\n' +
+          '║  Streak tracking and shelter activities will NOT persist.   ║\n' +
+          '║  Run this SQL in the Supabase dashboard:                   ║\n' +
+          '║                                                            ║\n' +
+          '║  ALTER TABLE group_city_config                             ║\n' +
+          '║    ADD COLUMN IF NOT EXISTS settings jsonb DEFAULT \'{}\';   ║\n' +
+          '║                                                            ║\n' +
+          '╚══════════════════════════════════════════════════════════════╝'
+        );
+        return false;
+      }
+      // Some other error — log but don't block startup
+      log.error({ error }, 'Error checking settings column');
+    }
+
+    return true;
+  } catch (err) {
+    log.error({ err }, 'Error checking settings column');
+    return false;
+  }
+}
+
+/**
  * Load all group configurations from the database.
  * Loads ALL groups (including unapproved) so the command handler
  * can check approval status. Alert routing checks enabled flag separately.
