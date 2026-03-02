@@ -52,6 +52,106 @@ function getRandomTidbit(): string {
 }
 
 // =====================
+// Shelter Activities
+// =====================
+
+/** Fun mini-challenges and conversation starters to do while sheltering */
+const SHELTER_ACTIVITIES: string[] = [
+  '🎯 *אתגר 60 שניות:* כמה ערים ישראליות תוכלו לרשום ביחד תוך דקה?',
+  '🧠 *שאלת חשיבה:* אם יכולתם להיות בכל מקום בעולם עכשיו — איפה הייתם?',
+  '🎵 *אתגר מוזיקה:* שלחו שורה אחת מהשיר שנתקע לכם בראש',
+  '🤔 *ויכוח חשוב:* מה עדיף — חומוס מסעדה או חומוס שוק? מצביעים!',
+  '✏️ *משחק מילים:* מצאו עיר ישראלית שמתחילה בכל אות של שמכם',
+  '🌟 *סבב חיובי:* כל אחד משתף משהו טוב שקרה לו השבוע',
+  '🍕 *שאלה דחופה:* מה אתם הכי רוצים לאכול עכשיו?',
+  '📱 *אתגר סמיילים:* כל אחד שולח הודעה בסמיילים בלבד — השאר מנחשים',
+  '🏠 *תאור:* תארו את הממ"ד שלכם ב-3 מילים בלבד',
+  '💭 *חלומות:* אם הייתה לכם חופשה מחר — מה הייתם עושים?',
+  '🐾 *חיות:* אם הייתם חיה ישראלית, איזו הייתם? פלמינגו? צבי? נמייה?',
+  '🔢 *ניחוש:* כמה קילומטרים מתל אביב לאילת? הנוחש הכי קרוב מנצח!',
+  '🎬 *המלצות:* כל אחד מציין סרט ישראלי אחד שממליץ עליו',
+  '🌈 *עיצוב:* אם הממ"ד שלכם היה בכל צבע שתרצו — איזה הייתם בוחרים?',
+  '☕ *העדפות:* קפה שחור, עם חלב, או חלילה בלי קפה בכלל?',
+  '🎲 *כמה שניות יש לכם?* נסו לנחש כמה שניות של מרחב מוגן יש בעיר שלכם',
+  '💡 *המצאות:* אם הייתם ממציאים משהו לשפר את הממ"ד — מה הייתם ממציאים?',
+  '🌍 *גאוגרפיה:* מי יכול לשלוח עיר ישראלית לכל אות ב-א-ב?',
+  // This or that polls
+  '🗳️ *הצבעה:* פיצה עם אננס — בעד או נגד? 🍍 כולם מצביעים!',
+  '🌊 *ים או הרים?* כל אחד משיב מיד — ניצחון לפי רוב 🏔️',
+  '🚗 *ויכוח נסיעות:* חניה בתל אביב — אפשרית או מיתוס? מצביעים!',
+  // Breathing / physical
+  '🫁 *רגע נשימה:* שאפו 4 שניות ← עצרו 4 ← נשפו 4. פעם אחת — מרגישים הבדל? 😌',
+  // Year-specific (update if year changes)
+  '🖊️ *מה הכותרת?* תארו את 2026 בכותרת עיתון אחת',
+  // Creative / funny
+  '🎭 *שחקן:* איזה שחקן ישראלי היה מגלם אתכם בסרט על הממ"ד שלכם?',
+  '🎤 *קריוקי ממ"ד:* שלחו שם שיר שמתאים בול לרגע הזה',
+  // Riddle
+  '🧩 *חידה:* מה יש לך פעם אחת בדקה, פעמיים ברגע, ואף פעם לא באלף שנים?\n_(תשובה: האות ד)_',
+];
+
+/** Pick a random shelter activity */
+export function getRandomActivity(): string {
+  return SHELTER_ACTIVITIES[Math.floor(Math.random() * SHELTER_ACTIVITIES.length)];
+}
+
+// =====================
+// Streak Messages
+// =====================
+
+/** Format streak duration in Hebrew or English */
+function formatStreakDuration(hours: number, language: 'he' | 'en'): string {
+  if (language === 'he') {
+    if (hours < 24) return `${hours} שעות`;
+    if (hours < 48) return 'יום שלם';
+    if (hours < 168) return `${Math.round(hours / 24)} ימים`;
+    return 'שבוע שלם';
+  } else {
+    if (hours < 24) return `${hours} hours`;
+    if (hours < 48) return 'a full day';
+    if (hours < 168) return `${Math.round(hours / 24)} days`;
+    return 'a full week';
+  }
+}
+
+/** Casual Hebrew/English comments per milestone */
+const STREAK_COMMENTS: Record<number, { he: string; en: string }> = {
+  6:   { he: 'נושמים רגע ☀️', en: 'Taking a breath ☀️' },
+  12:  { he: 'חצי יום של שקט — נהנים ממנו 😎', en: 'Half a day of quiet — enjoying it 😎' },
+  24:  { he: 'יום שלם ללא אזעקות. ממשיכים כך 💙', en: 'A full day without alerts. Let\'s keep it 💙' },
+  48:  { he: 'יומיים! כבר אפשר להירגע קצת 😌', en: 'Two days! Starting to relax 😌' },
+  72:  { he: 'שלושה ימים. נראה טוב מאוד 💪', en: 'Three days. Looking really good 💪' },
+  168: { he: 'שבוע שלם! זה ממש מרשים 🌟', en: 'A whole week! That\'s seriously impressive 🌟' },
+};
+
+/**
+ * Build a streak milestone announcement message.
+ * @param hours - Which milestone (6, 12, 24, 48, 72, or 168)
+ * @param isRecord - Whether this beats the group's previous record
+ * @param language - Message language
+ */
+export function buildStreakMilestoneMessage(
+  hours: number,
+  isRecord: boolean,
+  language: 'he' | 'en'
+): string {
+  const duration = formatStreakDuration(hours, language);
+  const comment = STREAK_COMMENTS[hours] ?? { he: 'רגוע פה 🕊️', en: 'Quiet here 🕊️' };
+
+  if (language === 'he') {
+    if (isRecord) {
+      return `🏆 *שיא חדש!*\n\nכבר *${duration}* ללא אזעקות — הכי ארוך שהיה! ממשיכים לשמור 🤞\n\n_כיבוי: !streak off_`;
+    }
+    return `🕊️ *${duration} ללא אזעקות*\n\n${comment.he}\n\n_כיבוי: !streak off_`;
+  } else {
+    if (isRecord) {
+      return `🏆 *New record!*\n\n*${duration}* without alerts — personal best! Keep it going 🤞\n\n_disable: !streak off_`;
+    }
+    return `🕊️ *${duration} without alerts*\n\n${comment.en}\n\n_disable: !streak off_`;
+  }
+}
+
+// =====================
 // Alert Type Display Names
 // =====================
 
@@ -121,6 +221,38 @@ export function buildAlertMessage(
     msg += `Move to your safe room, no panic 🙏\n\n`;
     msg += `_${getRandomTidbit()}_`;
     return msg;
+  }
+}
+
+/**
+ * Build the follow-up shelter activity message (sent right after the alert).
+ */
+export function buildActivityMessage(language: 'he' | 'en'): string {
+  if (language === 'he') {
+    return `🎮 *בזמן שאתם שם:*\n${getRandomActivity()}\n\n_כיבוי: !activities off_`;
+  }
+  return `🎮 *While you're in there:*\n${getRandomActivity()}\n\n_disable: !activities off_`;
+}
+
+/**
+ * Build a wrap-up message sent after shelter fully clears,
+ * summarising how long the group was in shelter.
+ */
+export function buildShelterWrapUpMessage(durationMs: number, language: 'he' | 'en'): string {
+  const minutes = Math.round(durationMs / 60_000);
+
+  if (language === 'he') {
+    const label =
+      minutes < 1 ? 'פחות מדקה' :
+      minutes === 1 ? 'כדקה' :
+      `כ-${minutes} דקות`;
+    return `⏱️ *${label} בממ"ד* — כולם בחוץ? 🤞`;
+  } else {
+    const label =
+      minutes < 1 ? 'under a minute' :
+      minutes === 1 ? 'about 1 minute' :
+      `about ${minutes} minutes`;
+    return `⏱️ *${label} in the shelter* — everyone out? 🤞`;
   }
 }
 
@@ -274,6 +406,8 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!lang* he/en - לשנות שפה
 *!status* - מה המצב שלי
 *!test* - בדיקת חיים
+*!streak* on/off - מד שעות שקט בין אזעקות ⏱️
+*!activities* on/off - אתגרים קטנים בזמן האזעקה 🎮
 *!ask* שאלה - לשאול את ה-AI כל שאלה 🤖
 *אקו* שאלה - אותו דבר, רק יותר טבעי 😎
 *!help* - מה שאתם רואים עכשיו 😄
@@ -289,6 +423,8 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!lang* he/en - Change language
 *!status* - How I'm doing
 *!test* - Am I alive?
+*!streak* on/off - Silence streak milestones ⏱️
+*!activities* on/off - Mini shelter challenges 🎮
 *!ask* question - Ask the AI anything 🤖
 *echo* question - Same thing, just more natural 😎
 *!help* - This thing you're reading 😄

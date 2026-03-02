@@ -17,7 +17,14 @@ import { RedAlertEvent, GroupConfig } from '../types';
 import * as groupConfig from './group-config';
 import { sendGroupMessage } from '../services/whatsapp';
 import { logAlert } from '../services/supabase';
-import { buildAlertMessage, buildEndAlertMessage, buildNewsFlashMessage } from '../utils/messages';
+import {
+  buildAlertMessage,
+  buildActivityMessage,
+  buildEndAlertMessage,
+  buildNewsFlashMessage,
+  buildShelterWrapUpMessage,
+} from '../utils/messages';
+import { onAlertFired } from './streak-tracker';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('alert-router');
@@ -27,6 +34,13 @@ const log = createLogger('alert-router');
  * Key: groupId, Value: Set of city names currently under alert
  */
 const activeShelters = new Map<string, Set<string>>();
+
+/**
+ * Tracks when each group entered shelter (timestamp ms of the first alert).
+ * Used to compute duration for the wrap-up message after all-clear.
+ * Key: groupId, Value: Date.now() when the first alert was sent
+ */
+const shelterStartTimes = new Map<string, number>();
 
 /**
  * Dedup: track recently sent messages to prevent duplicates.
@@ -168,6 +182,11 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
       instructions: '',
     };
 
+    // Record shelter start time (only on the first alert — don't overwrite on follow-ups)
+    if (!shelterStartTimes.has(groupId)) {
+      shelterStartTimes.set(groupId, Date.now());
+    }
+
     const message = buildAlertMessage(fakeAlert, newCities, config.language);
 
     log.info(
@@ -177,6 +196,14 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
 
     await sendGroupMessage(groupId, message);
     groupsNotified.push(groupId);
+
+    // Follow-up activity message (default on — only skip if explicitly disabled)
+    if (config.settings?.activitiesEnabled !== false) {
+      await sendGroupMessage(groupId, buildActivityMessage(config.language));
+    }
+
+    // Reset streak clock — a new alert just fired for this group
+    onAlertFired(groupId).catch(() => {});
   }
 
   // Log once
@@ -282,9 +309,16 @@ export async function handleEndAlert(alert: RedAlertEvent): Promise<void> {
     await sendGroupMessage(groupId, message);
     groupsNotified.push(groupId);
 
-    // If no more active cities, clean up the shelter entry
+    // If no more active cities, clean up and send a wrap-up with duration
     if (shelter.size === 0) {
       activeShelters.delete(groupId);
+
+      const startTime = shelterStartTimes.get(groupId);
+      if (startTime) {
+        const durationMs = Date.now() - startTime;
+        await sendGroupMessage(groupId, buildShelterWrapUpMessage(durationMs, language));
+        shelterStartTimes.delete(groupId);
+      }
     }
   }
 
@@ -325,5 +359,6 @@ export function getActiveShelterCount(): number {
  */
 export function clearAllShelters(): void {
   activeShelters.clear();
+  shelterStartTimes.clear();
   log.info('All active shelters cleared');
 }
