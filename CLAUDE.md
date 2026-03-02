@@ -29,7 +29,7 @@ No test suite exists. Verify changes by type-checking (`npx tsc --noEmit`) and t
 
 Two persistent connections run 24/7:
 
-1. **WhatsApp** (Baileys library via `services/whatsapp.ts`) — connected as phone number 972537142501. Sends/receives messages in groups.
+1. **WhatsApp** (Baileys library via `services/whatsapp.ts`) — connected via QR code scan. Sends/receives messages in groups.
 2. **RedAlert** (Socket.IO via `services/redalert.ts`) — websocket to `redalert.orielhaim.com`. Receives real-time alert events pushed from Pikud HaOref.
 
 ### Alert Flow
@@ -86,7 +86,7 @@ RLS is **disabled** on `group_city_config` and `alert_log`. The `whatsapp_auth_s
 
 The bot uses casual, friendly Hebrew. Not formal, not military. Key tone words: "יאללה", "זזים", "נגמר!", "רגוע". Messages include random fun facts (Israel-related and weird science) during shelter alerts to lighten the mood. All messages are in `utils/messages.ts`.
 
-WhatsApp uses **LID format** (`133088285880506@lid`) alongside phone numbers (`972526739276@s.whatsapp.net`) for sender identification. The admin check in `command-handler.ts` handles both formats. `ADMIN_NUMBERS` env var should include both the phone number and the LID.
+WhatsApp uses **LID format** (e.g. `123456789@lid`) alongside phone numbers (e.g. `972501234567@s.whatsapp.net`) for sender identification. The admin check in `command-handler.ts` handles both formats. `ADMIN_NUMBERS` env var should include both the phone number and the LID.
 
 ## Known Gotchas
 

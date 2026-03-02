@@ -15,7 +15,7 @@ import {
   initAuthCreds,
   BufferJSON,
 } from '@whiskeysockets/baileys';
-import { SUPABASE_URL, SUPABASE_KEY } from '../config';
+import { SUPABASE_URL, SUPABASE_KEY, isSupabaseConfigured } from '../config';
 import { GroupConfigRow, AlertLogEntry } from '../types';
 import { createLogger } from '../utils/logger';
 
@@ -36,11 +36,18 @@ let supabase: SupabaseClient | null = null;
 
 /**
  * Initialize the Supabase client.
- * Must be called before any database operations.
+ * Returns null if Supabase is not configured (bot runs without DB).
  */
-export function initSupabase(): SupabaseClient {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('Missing SUPABASE_URL or SUPABASE_KEY in environment');
+export function initSupabase(): SupabaseClient | null {
+  if (!isSupabaseConfigured()) {
+    log.warn(
+      'Supabase not configured — running without database.\n' +
+      '  • WhatsApp session stored locally (auth_info/)\n' +
+      '  • Group configs from INITIAL_GROUPS env var only\n' +
+      '  • Alert history and AI chat history not saved\n' +
+      '  Set SUPABASE_URL and SUPABASE_KEY in .env, or run: npm run setup'
+    );
+    return null;
   }
 
   log.info({ url: SUPABASE_URL, keyPrefix: SUPABASE_KEY.substring(0, 20) + '...' }, 'Initializing Supabase');
