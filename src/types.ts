@@ -40,6 +40,20 @@ export type AlertType =
 // Group Configuration
 // =====================
 
+/** Per-group optional feature settings, stored in the settings JSONB column */
+export interface GroupSettings {
+  /** Whether to announce streak milestones (hours of silence since last alert) */
+  streakEnabled?: boolean;
+  /** Timestamp (ms) of the last real alert that fired for this group */
+  lastAlertAt?: number | null;
+  /** Longest streak of silence ever recorded for this group, in ms */
+  longestStreakMs?: number;
+  /** Last streak milestone (in hours) that was announced, to avoid re-announcing */
+  lastMilestoneHours?: number;
+  /** Whether to append a shelter activity to alert messages */
+  activitiesEnabled?: boolean;
+}
+
 /** Configuration for a single WhatsApp group's alert monitoring */
 export interface GroupConfig {
   /** WhatsApp group JID, e.g. "120363419572967849@g.us" */
@@ -52,6 +66,8 @@ export interface GroupConfig {
   language: 'he' | 'en';
   /** Whether this group is actively receiving alerts */
   enabled: boolean;
+  /** Optional feature toggles and streak state */
+  settings: GroupSettings;
 }
 
 // =====================
@@ -76,6 +92,7 @@ export interface GroupConfigRow {
   cities: string[];
   language: string;
   enabled: boolean;
+  settings?: Record<string, any>;
   created_at?: string;
   updated_at?: string;
 }
