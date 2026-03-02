@@ -90,15 +90,21 @@ export function getInitialGroups(): Array<{
 }
 
 // =====================
+// Helpers
+// =====================
+
+/** Whether Supabase is configured (has URL + key) */
+export function isSupabaseConfigured(): boolean {
+  return !!(SUPABASE_URL && SUPABASE_KEY);
+}
+
+// =====================
 // Validation
 // =====================
 
 /** Check that required config is present */
 export function validateConfig(): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-
-  if (!SUPABASE_URL) errors.push('SUPABASE_URL is required');
-  if (!SUPABASE_KEY) errors.push('SUPABASE_KEY is required');
 
   if (!REDALERT_TEST_MODE && !REDALERT_API_KEY) {
     errors.push('REDALERT_API_KEY is required (or set REDALERT_TEST_MODE=true)');
