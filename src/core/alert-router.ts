@@ -51,6 +51,14 @@ const recentMessages = new Map<string, number>();
 const DEDUP_WINDOW_MS = 60_000; // 60 seconds
 
 /**
+ * Per-group newsFlash cooldown: prevents spamming a group with multiple
+ * newsFlash messages when overlapping city combos produce different dedup keys.
+ * Key: groupId, Value: timestamp of last newsFlash sent to that group
+ */
+const lastNewsFlashPerGroup = new Map<string, number>();
+const NEWS_FLASH_COOLDOWN_MS = 180_000; // 3 minutes
+
+/**
  * Check if a message was recently sent (within dedup window).
  * If not, mark it as sent and return false (not a duplicate).
  */
@@ -92,10 +100,10 @@ function isDuplicate(groupId: string, eventType: string, cities: string[]): bool
  */
 export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
   // Aggregate: collect all new cities per group across all alerts in this batch
-  // Key: groupId, Value: { config, newCities, alertType }
+  // Key: groupId, Value: { config, newCities, alertType, wasAlreadySheltering }
   const groupBatch = new Map<
     string,
-    { config: GroupConfig; newCities: string[]; alertType: string }
+    { config: GroupConfig; newCities: string[]; alertType: string; wasAlreadySheltering: boolean }
   >();
 
   for (const alert of alerts) {
@@ -163,10 +171,14 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
           }
         }
       } else {
+        // Snapshot: was this group already in shelter before this batch?
+        // If shelterStartTimes already has an entry, this is a follow-up, not a new session.
+        const wasAlreadySheltering = shelterStartTimes.has(config.groupId);
         groupBatch.set(config.groupId, {
           config,
           newCities: [...newCities],
           alertType: alert.type,
+          wasAlreadySheltering,
         });
       }
     }
@@ -175,7 +187,7 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
   // Now send one message per group with all aggregated cities
   const groupsNotified: string[] = [];
 
-  for (const [groupId, { config, newCities, alertType }] of groupBatch) {
+  for (const [groupId, { config, newCities, alertType, wasAlreadySheltering }] of groupBatch) {
     const fakeAlert: RedAlertEvent = {
       type: alertType,
       cities: newCities,
@@ -197,8 +209,9 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
     await sendGroupMessage(groupId, message);
     groupsNotified.push(groupId);
 
-    // Follow-up activity message (default on — only skip if explicitly disabled)
-    if (config.settings?.activitiesEnabled !== false) {
+    // Follow-up activity message: only on NEW shelter session (not follow-up alerts)
+    // Default on — only skip if explicitly disabled or group was already sheltering
+    if (config.settings?.activitiesEnabled !== false && !wasAlreadySheltering) {
       await sendGroupMessage(groupId, buildActivityMessage(config.language));
     }
 
@@ -231,7 +244,18 @@ async function handleNewsFlash(alert: RedAlertEvent): Promise<void> {
   const groupsNotified: string[] = [];
 
   for (const { config, matchedCities } of matchingGroups) {
-    // Dedup: skip if we already sent a newsFlash for these cities recently
+    // Per-group cooldown: skip if we sent ANY newsFlash to this group recently
+    const lastSent = lastNewsFlashPerGroup.get(config.groupId);
+    const now = Date.now();
+    if (lastSent && now - lastSent < NEWS_FLASH_COOLDOWN_MS) {
+      log.debug(
+        { groupId: config.groupId, ago: now - lastSent },
+        'newsFlash cooldown active, skipping'
+      );
+      continue;
+    }
+
+    // Dedup: skip if we already sent a newsFlash for these exact cities recently
     if (isDuplicate(config.groupId, 'newsFlash', matchedCities)) continue;
 
     const message = buildNewsFlashMessage(matchedCities, config.language);
@@ -242,6 +266,7 @@ async function handleNewsFlash(alert: RedAlertEvent): Promise<void> {
     );
 
     await sendGroupMessage(config.groupId, message);
+    lastNewsFlashPerGroup.set(config.groupId, now);
     groupsNotified.push(config.groupId);
   }
 
@@ -360,5 +385,6 @@ export function getActiveShelterCount(): number {
 export function clearAllShelters(): void {
   activeShelters.clear();
   shelterStartTimes.clear();
+  lastNewsFlashPerGroup.clear();
   log.info('All active shelters cleared');
 }
