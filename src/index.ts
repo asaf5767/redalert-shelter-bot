@@ -48,8 +48,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Step 2: Initialize database
-  log.info('Initializing Supabase...');
+  // Step 2: Initialize database (optional — bot works without it)
   initSupabase();
 
   // Step 3: Load group configs
