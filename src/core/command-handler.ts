@@ -637,8 +637,8 @@ function isBotMentioned(mentionedJids: string[]): boolean {
  * Check if a JID belongs to the bot.
  * Checks against both the bot's phone JID and LID (internal WhatsApp ID).
  * WhatsApp uses LID format in quotedParticipant for replies.
- * - Phone JID: "972537142501@s.whatsapp.net" or "972537142501:123@s.whatsapp.net"
- * - LID: "133088285880506@lid" or "133088285880506:59@lid"
+ * - Phone JID: "972501234567@s.whatsapp.net" or "972501234567:123@s.whatsapp.net"
+ * - LID: "123456789012345@lid" or "123456789012345:59@lid"
  */
 function isBotJid(jid: string): boolean {
   const extractId = (j: string) => j.split('@')[0].split(':')[0];
@@ -661,8 +661,8 @@ function isBotJid(jid: string): boolean {
  * Handles multiple JID formats:
  * - Phone: "972501234567@s.whatsapp.net"
  * - Phone with device: "972501234567:123@s.whatsapp.net"
- * - LID: "133088285880506@lid"
- * - LID with device: "133088285880506:59@lid"
+ * - LID: "123456789012345@lid"
+ * - LID with device: "123456789012345:59@lid"
  *
  * We check against ADMIN_NUMBERS which can contain phone numbers or LIDs.
  */
