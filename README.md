@@ -22,11 +22,11 @@
 
 ```mermaid
 flowchart LR
-    A["🚀 Pikud HaOref\nSiren"] --> B["📡 RedAlert API\n(Socket.IO)"]
-    B --> C["🤖 Shelter Bot\n(alert-router)"]
-    C --> D["💬 WhatsApp Groups\n'Go to shelter!'"]
+    A["🚀 Pikud HaOref<br/>Siren"] --> B["📡 RedAlert API<br/>(Socket.IO)"]
+    B --> C["🤖 Shelter Bot<br/>(alert-router)"]
+    C --> D["💬 WhatsApp Groups<br/>Go to shelter!"]
     E["⏰ End Alert"] --> C
-    C --> F["✅ WhatsApp Groups\n'Safe to come out!'"]
+    C --> F["✅ WhatsApp Groups<br/>Safe to come out!"]
 
     style A fill:#e74c3c,color:#fff,stroke:none
     style B fill:#f39c12,color:#fff,stroke:none
