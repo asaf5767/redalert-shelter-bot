@@ -152,7 +152,11 @@ export async function approveGroup(groupId: string): Promise<void> {
       cities: [],
       language: 'he',
       enabled: true,
-      settings: {},
+      // Both features on by default; clock starts now so streak can fire
+      settings: {
+        lastAlertAt: Date.now(),
+        lastMilestoneHours: 0,
+      },
     };
   } else {
     config.enabled = true;
@@ -183,7 +187,10 @@ export async function addCities(
       cities: [],
       language: 'he',
       enabled: true,
-      settings: {},
+      settings: {
+        lastAlertAt: Date.now(),
+        lastMilestoneHours: 0,
+      },
     };
   }
 
@@ -274,7 +281,10 @@ export async function setLanguage(
       cities: [],
       language,
       enabled: true,
-      settings: {},
+      settings: {
+        lastAlertAt: Date.now(),
+        lastMilestoneHours: 0,
+      },
     };
   } else {
     config.language = language;
@@ -328,7 +338,7 @@ export async function setActivitiesEnabled(groupId: string, enabled: boolean): P
  */
 export async function resetStreak(groupId: string): Promise<void> {
   const config = configs.get(groupId);
-  if (!config || !config.settings.streakEnabled) return;
+  if (!config || config.settings.streakEnabled === false) return;
 
   const now = Date.now();
   const { lastAlertAt, longestStreakMs = 0 } = config.settings;

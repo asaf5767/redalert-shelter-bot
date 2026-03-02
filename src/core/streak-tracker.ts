@@ -50,7 +50,7 @@ async function checkStreakMilestones(): Promise<void> {
   const now = Date.now();
 
   for (const config of groupConfig.getAllConfigs()) {
-    if (!config.enabled || !config.settings.streakEnabled) continue;
+    if (!config.enabled || config.settings.streakEnabled === false) continue;
 
     const { lastAlertAt, longestStreakMs = 0, lastMilestoneHours = 0 } = config.settings;
 

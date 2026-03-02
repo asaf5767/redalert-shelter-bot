@@ -520,7 +520,8 @@ async function handleStreak(
   const arg = args.trim().toLowerCase();
 
   if (arg !== 'on' && arg !== 'off') {
-    const current = config.settings.streakEnabled ? (lang === 'he' ? 'פעיל ✅' : 'on ✅') : (lang === 'he' ? 'כבוי ❌' : 'off ❌');
+    const isOn = config.settings.streakEnabled !== false;
+    const current = isOn ? (lang === 'he' ? 'פעיל ✅' : 'on ✅') : (lang === 'he' ? 'כבוי ❌' : 'off ❌');
     const hint = lang === 'he'
       ? `⏱️ *מד הרצף* — עוקב אחרי שעות שקט בין אזעקות.\n\nמצב נוכחי: ${current}\n\nשלחו *!streak on* להפעיל או *!streak off* לכבות.`
       : `⏱️ *Streak tracker* — counts quiet hours between alerts.\n\nCurrent: ${current}\n\nSend *!streak on* to enable or *!streak off* to disable.`;
@@ -557,7 +558,8 @@ async function handleActivities(
   const arg = args.trim().toLowerCase();
 
   if (arg !== 'on' && arg !== 'off') {
-    const current = config.settings.activitiesEnabled ? (lang === 'he' ? 'פעיל ✅' : 'on ✅') : (lang === 'he' ? 'כבוי ❌' : 'off ❌');
+    const isOn = config.settings.activitiesEnabled !== false;
+    const current = isOn ? (lang === 'he' ? 'פעיל ✅' : 'on ✅') : (lang === 'he' ? 'כבוי ❌' : 'off ❌');
     const hint = lang === 'he'
       ? `🎮 *פעילויות בממ"ד* — מוסיף אתגר קטן להודעות האזעקה כדי לעבור את הזמן.\n\nמצב נוכחי: ${current}\n\nשלחו *!activities on* להפעיל או *!activities off* לכבות.`
       : `🎮 *Shelter activities* — adds a mini challenge to alert messages to pass the time.\n\nCurrent: ${current}\n\nSend *!activities on* to enable or *!activities off* to disable.`;

@@ -140,14 +140,14 @@ export function buildStreakMilestoneMessage(
 
   if (language === 'he') {
     if (isRecord) {
-      return `🏆 *שיא חדש!*\n\nכבר *${duration}* ללא אזעקות — הכי ארוך שהיה! ממשיכים לשמור 🤞`;
+      return `🏆 *שיא חדש!*\n\nכבר *${duration}* ללא אזעקות — הכי ארוך שהיה! ממשיכים לשמור 🤞\n\n_כיבוי: !streak off_`;
     }
-    return `🕊️ *${duration} ללא אזעקות*\n\n${comment.he}`;
+    return `🕊️ *${duration} ללא אזעקות*\n\n${comment.he}\n\n_כיבוי: !streak off_`;
   } else {
     if (isRecord) {
-      return `🏆 *New record!*\n\n*${duration}* without alerts — personal best! Keep it going 🤞`;
+      return `🏆 *New record!*\n\n*${duration}* without alerts — personal best! Keep it going 🤞\n\n_disable: !streak off_`;
     }
-    return `🕊️ *${duration} without alerts*\n\n${comment.en}`;
+    return `🕊️ *${duration} without alerts*\n\n${comment.en}\n\n_disable: !streak off_`;
   }
 }
 
@@ -199,13 +199,11 @@ const ALERT_TYPE_NAMES_EN: Record<string, string> = {
 
 /**
  * Build the "go to shelter" message for an alert.
- * @param includeActivity - When true, appends a random shelter activity after the fun fact
  */
 export function buildAlertMessage(
   alert: RedAlertEvent,
   matchedCities: string[],
-  language: 'he' | 'en',
-  includeActivity = false
+  language: 'he' | 'en'
 ): string {
   const cities = matchedCities.join(', ');
 
@@ -215,9 +213,6 @@ export function buildAlertMessage(
     msg += `📍 ${cities}\n\n`;
     msg += `זזים למרחב המוגן ברוגע, בלי פאניקה 🙏\n\n`;
     msg += `_${getRandomTidbit()}_`;
-    if (includeActivity) {
-      msg += `\n\n🎮 *בזמן שאתם שם:*\n${getRandomActivity()}`;
-    }
     return msg;
   } else {
     const typeName = ALERT_TYPE_NAMES_EN[alert.type] || alert.type;
@@ -225,10 +220,39 @@ export function buildAlertMessage(
     msg += `📍 ${cities}\n\n`;
     msg += `Move to your safe room, no panic 🙏\n\n`;
     msg += `_${getRandomTidbit()}_`;
-    if (includeActivity) {
-      msg += `\n\n🎮 *While you're in there:*\n${getRandomActivity()}`;
-    }
     return msg;
+  }
+}
+
+/**
+ * Build the follow-up shelter activity message (sent right after the alert).
+ */
+export function buildActivityMessage(language: 'he' | 'en'): string {
+  if (language === 'he') {
+    return `🎮 *בזמן שאתם שם:*\n${getRandomActivity()}\n\n_כיבוי: !activities off_`;
+  }
+  return `🎮 *While you're in there:*\n${getRandomActivity()}\n\n_disable: !activities off_`;
+}
+
+/**
+ * Build a wrap-up message sent after shelter fully clears,
+ * summarising how long the group was in shelter.
+ */
+export function buildShelterWrapUpMessage(durationMs: number, language: 'he' | 'en'): string {
+  const minutes = Math.round(durationMs / 60_000);
+
+  if (language === 'he') {
+    const label =
+      minutes < 1 ? 'פחות מדקה' :
+      minutes === 1 ? 'כדקה' :
+      `כ-${minutes} דקות`;
+    return `⏱️ *${label} בממ"ד* — כולם בחוץ? 🤞`;
+  } else {
+    const label =
+      minutes < 1 ? 'under a minute' :
+      minutes === 1 ? 'about 1 minute' :
+      `about ${minutes} minutes`;
+    return `⏱️ *${label} in the shelter* — everyone out? 🤞`;
   }
 }
 
