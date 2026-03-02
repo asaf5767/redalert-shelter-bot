@@ -10,7 +10,7 @@
  *   groupConfig.getMatchingGroups(cities)  // Find groups for an alert
  */
 
-import { GroupConfig, GroupConfigRow } from '../types';
+import { GroupConfig, GroupConfigRow, GroupSettings } from '../types';
 import { loadGroupConfigs, saveGroupConfig } from '../services/supabase';
 import { getInitialGroups } from '../config';
 import { createLogger } from '../utils/logger';
@@ -39,6 +39,7 @@ export async function init(): Promise<void> {
       cities: row.cities || [],
       language: (row.language as 'he' | 'en') || 'he',
       enabled: row.enabled,
+      settings: (row.settings as GroupSettings) || {},
     });
   }
 
@@ -125,6 +126,18 @@ export function getMatchingGroups(
 // Write Operations
 // =====================
 
+/** Persist a config object to Supabase */
+async function save(config: GroupConfig): Promise<void> {
+  await saveGroupConfig({
+    groupId: config.groupId,
+    groupName: config.groupName,
+    cities: config.cities,
+    language: config.language,
+    enabled: config.enabled,
+    settings: config.settings,
+  });
+}
+
 /**
  * Approve a group to use the bot.
  * Creates the config entry if it doesn't exist, sets enabled=true.
@@ -139,21 +152,14 @@ export async function approveGroup(groupId: string): Promise<void> {
       cities: [],
       language: 'he',
       enabled: true,
+      settings: {},
     };
   } else {
     config.enabled = true;
   }
 
   configs.set(groupId, config);
-
-  await saveGroupConfig({
-    groupId: config.groupId,
-    groupName: config.groupName,
-    cities: config.cities,
-    language: config.language,
-    enabled: true,
-  });
-
+  await save(config);
   log.info({ groupId }, 'Group approved');
 }
 
@@ -177,6 +183,7 @@ export async function addCities(
       cities: [],
       language: 'he',
       enabled: true,
+      settings: {},
     };
   }
 
@@ -200,13 +207,7 @@ export async function addCities(
 
   // Save to memory and database
   configs.set(groupId, config);
-  await saveGroupConfig({
-    groupId: config.groupId,
-    groupName: config.groupName,
-    cities: config.cities,
-    language: config.language,
-    enabled: config.enabled,
-  });
+  await save(config);
 
   log.info({ groupId, added }, 'Cities added to group');
   return added;
@@ -237,14 +238,7 @@ export async function removeCities(
 
   config.cities = remaining;
   configs.set(groupId, config);
-
-  await saveGroupConfig({
-    groupId: config.groupId,
-    groupName: config.groupName,
-    cities: config.cities,
-    language: config.language,
-    enabled: config.enabled,
-  });
+  await save(config);
 
   log.info({ groupId, removed }, 'Cities removed from group');
   return removed;
@@ -259,14 +253,7 @@ export async function clearCities(groupId: string): Promise<void> {
 
   config.cities = [];
   configs.set(groupId, config);
-
-  await saveGroupConfig({
-    groupId: config.groupId,
-    groupName: config.groupName,
-    cities: config.cities,
-    language: config.language,
-    enabled: config.enabled,
-  });
+  await save(config);
 
   log.info({ groupId }, 'All cities cleared from group');
 }
@@ -287,22 +274,98 @@ export async function setLanguage(
       cities: [],
       language,
       enabled: true,
+      settings: {},
     };
   } else {
     config.language = language;
   }
 
   configs.set(groupId, config);
-
-  await saveGroupConfig({
-    groupId: config.groupId,
-    groupName: config.groupName,
-    cities: config.cities,
-    language: config.language,
-    enabled: config.enabled,
-  });
-
+  await save(config);
   log.info({ groupId, language }, 'Language updated for group');
+}
+
+// =====================
+// Streak & Activity Settings
+// =====================
+
+/**
+ * Toggle streak milestone announcements for a group.
+ * When enabling, sets lastAlertAt = now so the clock starts immediately.
+ */
+export async function setStreakEnabled(groupId: string, enabled: boolean): Promise<void> {
+  const config = configs.get(groupId);
+  if (!config) return;
+
+  config.settings.streakEnabled = enabled;
+  // When turning on, start the clock from now so milestones can fire
+  if (enabled && !config.settings.lastAlertAt) {
+    config.settings.lastAlertAt = Date.now();
+    config.settings.lastMilestoneHours = 0;
+  }
+
+  configs.set(groupId, config);
+  await save(config);
+  log.info({ groupId, enabled }, 'Streak tracking updated');
+}
+
+/**
+ * Toggle shelter activity prompts appended to alert messages for a group.
+ */
+export async function setActivitiesEnabled(groupId: string, enabled: boolean): Promise<void> {
+  const config = configs.get(groupId);
+  if (!config) return;
+
+  config.settings.activitiesEnabled = enabled;
+  configs.set(groupId, config);
+  await save(config);
+  log.info({ groupId, enabled }, 'Activities updated');
+}
+
+/**
+ * Reset the streak for a group when an alert fires.
+ * Saves the old streak as the record if it's the longest ever.
+ */
+export async function resetStreak(groupId: string): Promise<void> {
+  const config = configs.get(groupId);
+  if (!config || !config.settings.streakEnabled) return;
+
+  const now = Date.now();
+  const { lastAlertAt, longestStreakMs = 0 } = config.settings;
+
+  if (lastAlertAt) {
+    const streakMs = now - lastAlertAt;
+    if (streakMs > longestStreakMs) {
+      config.settings.longestStreakMs = streakMs;
+    }
+  }
+
+  config.settings.lastAlertAt = now;
+  config.settings.lastMilestoneHours = 0;
+
+  configs.set(groupId, config);
+  await save(config);
+}
+
+/**
+ * Record that a streak milestone was announced for a group.
+ * Optionally update the longest streak record.
+ */
+export async function updateStreakMilestone(
+  groupId: string,
+  milestoneHours: number,
+  newRecordMs?: number
+): Promise<void> {
+  const config = configs.get(groupId);
+  if (!config) return;
+
+  config.settings.lastMilestoneHours = milestoneHours;
+  if (newRecordMs !== undefined) {
+    config.settings.longestStreakMs = newRecordMs;
+  }
+
+  configs.set(groupId, config);
+  await save(config);
 }
 
 // =====================

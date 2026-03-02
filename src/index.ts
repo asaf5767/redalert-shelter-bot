@@ -20,6 +20,7 @@ import { connectToRedAlert, disconnectRedAlert } from './services/redalert';
 import * as groupConfig from './core/group-config';
 import { handleAlert, handleEndAlert } from './core/alert-router';
 import { handleMessage } from './core/command-handler';
+import { startStreakTimer } from './core/streak-tracker';
 import { createLogger } from './utils/logger';
 
 const log = createLogger('main');
@@ -54,6 +55,9 @@ async function main(): Promise<void> {
   // Step 3: Load group configs
   log.info('Loading group configurations...');
   await groupConfig.init();
+
+  // Step 3b: Start streak milestone timer
+  startStreakTimer();
 
   const configs = groupConfig.getAllConfigs();
   if (configs.length > 0) {

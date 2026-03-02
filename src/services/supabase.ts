@@ -250,6 +250,7 @@ export async function saveGroupConfig(config: {
   cities: string[];
   language?: string;
   enabled?: boolean;
+  settings?: Record<string, any>;
 }): Promise<boolean> {
   if (!supabase) return false;
 
@@ -261,6 +262,7 @@ export async function saveGroupConfig(config: {
         cities: config.cities,
         language: config.language || 'he',
         enabled: config.enabled !== false,
+        settings: config.settings || {},
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'group_id' }

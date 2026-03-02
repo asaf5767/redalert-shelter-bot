@@ -52,6 +52,93 @@ function getRandomTidbit(): string {
 }
 
 // =====================
+// Shelter Activities
+// =====================
+
+/** Fun mini-challenges and conversation starters to do while sheltering */
+const SHELTER_ACTIVITIES: string[] = [
+  '🎯 *אתגר 60 שניות:* כמה ערים ישראליות תוכלו לרשום ביחד תוך דקה?',
+  '🧠 *שאלת חשיבה:* אם יכולתם להיות בכל מקום בעולם עכשיו — איפה הייתם?',
+  '🎵 *אתגר מוזיקה:* שלחו שורה אחת מהשיר שנתקע לכם בראש',
+  '🤔 *ויכוח חשוב:* מה עדיף — חומוס מסעדה או חומוס שוק? מצביעים!',
+  '✏️ *משחק מילים:* מצאו עיר ישראלית שמתחילה בכל אות של שמכם',
+  '🌟 *סבב חיובי:* כל אחד משתף משהו טוב שקרה לו השבוע',
+  '🍕 *שאלה דחופה:* מה אתם הכי רוצים לאכול עכשיו?',
+  '📱 *אתגר סמיילים:* כל אחד שולח הודעה בסמיילים בלבד — השאר מנחשים',
+  '🏠 *תאור:* תארו את הממ"ד שלכם ב-3 מילים בלבד',
+  '💭 *חלומות:* אם הייתה לכם חופשה מחר — מה הייתם עושים?',
+  '🐾 *חיות:* אם הייתם חיה ישראלית, איזו הייתם? פלמינגו? צבי? נמייה?',
+  '🔢 *ניחוש:* כמה קילומטרים מתל אביב לאילת? הנוחש הכי קרוב מנצח!',
+  '🎬 *המלצות:* כל אחד מציין סרט ישראלי אחד שממליץ עליו',
+  '🌈 *עיצוב:* אם הממ"ד שלכם היה בכל צבע שתרצו — איזה הייתם בוחרים?',
+  '☕ *העדפות:* קפה שחור, עם חלב, או חלילה בלי קפה בכלל?',
+  '🎲 *כמה שניות יש לכם?* נסו לנחש כמה שניות של מרחב מוגן יש בעיר שלכם',
+  '💡 *המצאות:* אם הייתם ממציאים משהו לשפר את הממ"ד — מה הייתם ממציאים?',
+  '🌍 *גאוגרפיה:* מי יכול לשלוח עיר ישראלית לכל אות ב-א-ב?',
+];
+
+/** Pick a random shelter activity */
+export function getRandomActivity(): string {
+  return SHELTER_ACTIVITIES[Math.floor(Math.random() * SHELTER_ACTIVITIES.length)];
+}
+
+// =====================
+// Streak Messages
+// =====================
+
+/** Format streak duration in Hebrew or English */
+function formatStreakDuration(hours: number, language: 'he' | 'en'): string {
+  if (language === 'he') {
+    if (hours < 24) return `${hours} שעות`;
+    if (hours < 48) return 'יום שלם';
+    if (hours < 168) return `${Math.round(hours / 24)} ימים`;
+    return 'שבוע שלם';
+  } else {
+    if (hours < 24) return `${hours} hours`;
+    if (hours < 48) return 'a full day';
+    if (hours < 168) return `${Math.round(hours / 24)} days`;
+    return 'a full week';
+  }
+}
+
+/** Casual Hebrew/English comments per milestone */
+const STREAK_COMMENTS: Record<number, { he: string; en: string }> = {
+  6:   { he: 'נושמים רגע ☀️', en: 'Taking a breath ☀️' },
+  12:  { he: 'חצי יום של שקט — נהנים ממנו 😎', en: 'Half a day of quiet — enjoying it 😎' },
+  24:  { he: 'יום שלם ללא אזעקות. ממשיכים כך 💙', en: 'A full day without alerts. Let\'s keep it 💙' },
+  48:  { he: 'יומיים! כבר אפשר להירגע קצת 😌', en: 'Two days! Starting to relax 😌' },
+  72:  { he: 'שלושה ימים. נראה טוב מאוד 💪', en: 'Three days. Looking really good 💪' },
+  168: { he: 'שבוע שלם! זה ממש מרשים 🌟', en: 'A whole week! That\'s seriously impressive 🌟' },
+};
+
+/**
+ * Build a streak milestone announcement message.
+ * @param hours - Which milestone (6, 12, 24, 48, 72, or 168)
+ * @param isRecord - Whether this beats the group's previous record
+ * @param language - Message language
+ */
+export function buildStreakMilestoneMessage(
+  hours: number,
+  isRecord: boolean,
+  language: 'he' | 'en'
+): string {
+  const duration = formatStreakDuration(hours, language);
+  const comment = STREAK_COMMENTS[hours] ?? { he: 'רגוע פה 🕊️', en: 'Quiet here 🕊️' };
+
+  if (language === 'he') {
+    if (isRecord) {
+      return `🏆 *שיא חדש!*\n\nכבר *${duration}* ללא אזעקות — הכי ארוך שהיה! ממשיכים לשמור 🤞`;
+    }
+    return `🕊️ *${duration} ללא אזעקות*\n\n${comment.he}`;
+  } else {
+    if (isRecord) {
+      return `🏆 *New record!*\n\n*${duration}* without alerts — personal best! Keep it going 🤞`;
+    }
+    return `🕊️ *${duration} without alerts*\n\n${comment.en}`;
+  }
+}
+
+// =====================
 // Alert Type Display Names
 // =====================
 
@@ -99,11 +186,13 @@ const ALERT_TYPE_NAMES_EN: Record<string, string> = {
 
 /**
  * Build the "go to shelter" message for an alert.
+ * @param includeActivity - When true, appends a random shelter activity after the fun fact
  */
 export function buildAlertMessage(
   alert: RedAlertEvent,
   matchedCities: string[],
-  language: 'he' | 'en'
+  language: 'he' | 'en',
+  includeActivity = false
 ): string {
   const cities = matchedCities.join(', ');
 
@@ -113,6 +202,9 @@ export function buildAlertMessage(
     msg += `📍 ${cities}\n\n`;
     msg += `זזים למרחב המוגן ברוגע, בלי פאניקה 🙏\n\n`;
     msg += `_${getRandomTidbit()}_`;
+    if (includeActivity) {
+      msg += `\n\n🎮 *בזמן שאתם שם:*\n${getRandomActivity()}`;
+    }
     return msg;
   } else {
     const typeName = ALERT_TYPE_NAMES_EN[alert.type] || alert.type;
@@ -120,6 +212,9 @@ export function buildAlertMessage(
     msg += `📍 ${cities}\n\n`;
     msg += `Move to your safe room, no panic 🙏\n\n`;
     msg += `_${getRandomTidbit()}_`;
+    if (includeActivity) {
+      msg += `\n\n🎮 *While you're in there:*\n${getRandomActivity()}`;
+    }
     return msg;
   }
 }
@@ -274,6 +369,8 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!lang* he/en - לשנות שפה
 *!status* - מה המצב שלי
 *!test* - בדיקת חיים
+*!streak* on/off - מד שעות שקט בין אזעקות ⏱️
+*!activities* on/off - אתגרים קטנים בזמן האזעקה 🎮
 *!ask* שאלה - לשאול את ה-AI כל שאלה 🤖
 *אקו* שאלה - אותו דבר, רק יותר טבעי 😎
 *!help* - מה שאתם רואים עכשיו 😄
@@ -289,6 +386,8 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!lang* he/en - Change language
 *!status* - How I'm doing
 *!test* - Am I alive?
+*!streak* on/off - Silence streak milestones ⏱️
+*!activities* on/off - Mini shelter challenges 🎮
 *!ask* question - Ask the AI anything 🤖
 *echo* question - Same thing, just more natural 😎
 *!help* - This thing you're reading 😄
