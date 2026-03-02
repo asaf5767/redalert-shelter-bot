@@ -39,6 +39,11 @@ let isConnected = false;
 // Pending messages queue (for when WhatsApp disconnects during an alert)
 const pendingMessages: Array<{ groupId: string; text: string }> = [];
 
+// Message dedup: prevents processing the same message twice.
+// Baileys can deliver duplicates during session renegotiation.
+const processedMessageIds = new Map<string, number>(); // messageId -> timestamp
+const MESSAGE_DEDUP_TTL_MS = 60_000; // 60 seconds
+
 // =====================
 // Connection
 // =====================
@@ -61,6 +66,22 @@ export async function connectToWhatsApp(
 ): Promise<void> {
   if (onMessage) {
     messageHandler = onMessage;
+  }
+
+  // Clean up previous socket before creating a new one.
+  // Without this, reconnections accumulate event listeners on old sockets,
+  // causing duplicate message processing.
+  if (sock) {
+    log.info('Cleaning up previous socket before reconnecting');
+    try {
+      sock.ev.removeAllListeners('connection.update');
+      sock.ev.removeAllListeners('creds.update');
+      sock.ev.removeAllListeners('messages.upsert');
+      sock.end(undefined);
+    } catch (err) {
+      log.warn({ err }, 'Error cleaning up old socket (non-fatal)');
+    }
+    sock = null;
   }
 
   // Load auth credentials from Supabase
@@ -171,6 +192,26 @@ export async function connectToWhatsApp(
     if (type !== 'notify') return;
 
     for (const message of messages) {
+      // Dedup: skip messages we have already processed.
+      // Protects against Baileys delivering the same message twice
+      // during session renegotiation.
+      const msgId = message.key.id;
+      if (msgId) {
+        const now = Date.now();
+        if (processedMessageIds.has(msgId)) {
+          log.debug({ msgId }, 'Skipping duplicate message');
+          continue;
+        }
+        processedMessageIds.set(msgId, now);
+
+        // Periodic cleanup: evict expired entries when the map grows large
+        if (processedMessageIds.size > 500) {
+          for (const [id, ts] of processedMessageIds) {
+            if (now - ts > MESSAGE_DEDUP_TTL_MS) processedMessageIds.delete(id);
+          }
+        }
+      }
+
       const chatId = message.key.remoteJid;
       const body = getMessageBody(message);
 
