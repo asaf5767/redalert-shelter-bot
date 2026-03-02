@@ -49,10 +49,7 @@ async function main(): Promise<void> {
   }
 
   // Step 2: Initialize database (optional — bot works without it)
-  const db = initSupabase();
-  if (!db) {
-    log.warn('Running without database — group configs from INITIAL_GROUPS only');
-  }
+  initSupabase();
 
   // Step 3: Load group configs
   log.info('Loading group configurations...');
