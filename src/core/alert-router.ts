@@ -55,7 +55,7 @@ const DEDUP_WINDOW_MS = 60_000; // 60 seconds
  * If not, mark it as sent and return false (not a duplicate).
  */
 function isDuplicate(groupId: string, eventType: string, cities: string[]): boolean {
-  const key = `${groupId}:${eventType}:${cities.sort().join(',')}`;
+  const key = `${groupId}:${eventType}:${[...cities].sort().join(',')}`;
   const now = Date.now();
   const lastSent = recentMessages.get(key);
 

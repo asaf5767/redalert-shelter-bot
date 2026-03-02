@@ -3,8 +3,8 @@
 /**
  * Interactive Setup Wizard for RedAlert Shelter Bot
  *
- * Walks through configuration, writes .env, and optionally
- * creates database tables automatically via Supabase JS client.
+ * Walks through configuration, writes .env, and checks
+ * database tables via Supabase JS client.
  *
  * Zero external dependencies — uses Node built-in readline.
  */
@@ -52,53 +52,31 @@ function fail(msg) {
 }
 
 // =====================
-// Database Auto-Create
+// Database Verification
 // =====================
 
-async function createTablesIfNeeded(supabaseUrl, supabaseKey) {
-  // Dynamic import — supabase-js is already a project dependency
-  let createClient;
-  try {
-    const mod = require('@supabase/supabase-js');
-    createClient = mod.createClient;
-  } catch {
-    warn('Could not load @supabase/supabase-js — run npm install first');
-    info('You can create tables manually using setup/schema.sql');
-    return false;
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
-  // Check each table by trying a SELECT; create if missing
+/**
+ * Check that all required tables exist in the Supabase database.
+ * Guides the user to create them manually if any are missing
+ * (Supabase JS client can't run DDL statements).
+ */
+async function verifyDatabaseSchema(supabase) {
   const tables = [
-    {
-      name: 'whatsapp_auth_state',
-      check: async () => supabase.from('whatsapp_auth_state').select('key').limit(1),
-    },
-    {
-      name: 'group_city_config',
-      check: async () => supabase.from('group_city_config').select('group_id').limit(1),
-    },
-    {
-      name: 'alert_log',
-      check: async () => supabase.from('alert_log').select('id').limit(1),
-    },
-    {
-      name: 'whatsapp_messages',
-      check: async () => supabase.from('whatsapp_messages').select('id').limit(1),
-    },
+    { name: 'whatsapp_auth_state', column: 'key' },
+    { name: 'group_city_config', column: 'group_id' },
+    { name: 'alert_log', column: 'id' },
+    { name: 'whatsapp_messages', column: 'id' },
   ];
 
   let allExist = true;
   const missing = [];
 
   for (const table of tables) {
-    const { error } = await table.check();
+    const { error } = await supabase.from(table.name).select(table.column).limit(1);
     if (error && (error.code === '42P01' || error.message?.includes('does not exist'))) {
       missing.push(table.name);
       allExist = false;
     } else if (error) {
-      // Some other error (auth issue, etc.)
       fail(`Error checking ${table.name}: ${error.message}`);
       return false;
     } else {
@@ -120,26 +98,13 @@ async function createTablesIfNeeded(supabaseUrl, supabaseKey) {
     return true;
   }
 
-  // Tables are missing — try to create them via SQL
+  // Tables are missing — guide user to create them
+  const schemaPath = path.join(__dirname, 'schema.sql');
+
   print();
   info(`Missing tables: ${missing.join(', ')}`);
-  info('Attempting to create via Supabase SQL...');
   print();
-
-  const schemaPath = path.join(__dirname, 'schema.sql');
-  if (!fs.existsSync(schemaPath)) {
-    fail('setup/schema.sql not found — cannot auto-create tables');
-    info('Create tables manually in the Supabase SQL Editor');
-    return false;
-  }
-
-  const schemaSql = fs.readFileSync(schemaPath, 'utf-8');
-
-  // Use Supabase's rpc to execute raw SQL (requires the pg_net extension or a custom function)
-  // Fallback: use the REST API to run individual statements won't work for DDL.
-  // Best approach: guide the user to paste schema.sql in the SQL editor.
   print('  ┌─────────────────────────────────────────────────────┐');
-  print('  │  Supabase doesn\'t allow DDL via the JS client.      │');
   print('  │  Please create the tables manually:                 │');
   print('  │                                                     │');
   print('  │  1. Open your Supabase dashboard                    │');
@@ -147,8 +112,7 @@ async function createTablesIfNeeded(supabaseUrl, supabaseKey) {
   print('  │  3. Paste the contents of setup/schema.sql          │');
   print('  │  4. Click "Run"                                     │');
   print('  │                                                     │');
-  print('  │  The SQL file is at:                                │');
-  print(`  │  ${schemaPath}`);
+  print(`  │  File: ${schemaPath}`);
   print('  └─────────────────────────────────────────────────────┘');
   print();
 
@@ -167,7 +131,6 @@ async function main() {
   print();
 
   const envPath = path.join(__dirname, '..', '.env');
-  const envExamplePath = path.join(__dirname, '..', '.env.example');
 
   // Check for existing .env
   if (fs.existsSync(envPath)) {
@@ -194,15 +157,13 @@ async function main() {
     config.SUPABASE_KEY = await ask('  Supabase Key');
 
     if (config.SUPABASE_KEY) {
-      // Test connection
+      // Test connection and check tables with a single client
       print();
       info('Testing Supabase connection...');
-      let createClient;
       try {
-        const mod = require('@supabase/supabase-js');
-        createClient = mod.createClient;
-        const sb = createClient(config.SUPABASE_URL, config.SUPABASE_KEY);
-        const { error } = await sb.from('whatsapp_auth_state').select('key').limit(1);
+        const { createClient } = require('@supabase/supabase-js');
+        const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_KEY);
+        const { error } = await supabase.from('whatsapp_auth_state').select('key').limit(1);
         // 42P01 = table doesn't exist (connection works, table missing — that's fine)
         if (error && error.code !== '42P01') {
           fail(`Connection error: ${error.message}`);
@@ -210,15 +171,15 @@ async function main() {
         } else {
           success('Connected to Supabase!');
         }
+
+        // Check tables using the same client
+        print();
+        info('Checking database tables...');
+        await verifyDatabaseSchema(supabase);
       } catch (err) {
         fail(`Could not connect: ${err.message}`);
         warn('Make sure npm install has been run.');
       }
-
-      // Check/create tables
-      print();
-      info('Checking database tables...');
-      await createTablesIfNeeded(config.SUPABASE_URL, config.SUPABASE_KEY);
     }
   } else {
     config.SUPABASE_KEY = '';

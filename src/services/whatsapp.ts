@@ -90,8 +90,7 @@ export async function connectToWhatsApp(
 
   if (!authState) {
     log.info('Using file-based auth (auth_info/) — session stored locally');
-    const fileAuth = await useMultiFileAuthState('./auth_info');
-    authState = { state: fileAuth.state, saveCreds: fileAuth.saveCreds };
+    authState = await useMultiFileAuthState('./auth_info');
   }
 
   const { state, saveCreds } = authState;

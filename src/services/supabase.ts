@@ -15,7 +15,7 @@ import {
   initAuthCreds,
   BufferJSON,
 } from '@whiskeysockets/baileys';
-import { SUPABASE_URL, SUPABASE_KEY } from '../config';
+import { SUPABASE_URL, SUPABASE_KEY, isSupabaseConfigured } from '../config';
 import { GroupConfigRow, AlertLogEntry } from '../types';
 import { createLogger } from '../utils/logger';
 
@@ -39,7 +39,7 @@ let supabase: SupabaseClient | null = null;
  * Returns null if Supabase is not configured (bot runs without DB).
  */
 export function initSupabase(): SupabaseClient | null {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
+  if (!isSupabaseConfigured()) {
     log.warn(
       'Supabase not configured — running without database.\n' +
       '  • WhatsApp session stored locally (auth_info/)\n' +
