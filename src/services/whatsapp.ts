@@ -14,6 +14,7 @@ import makeWASocket, {
   WASocket,
   fetchLatestBaileysVersion,
   WAMessage,
+  useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -84,11 +85,13 @@ export async function connectToWhatsApp(
     sock = null;
   }
 
-  // Load auth credentials from Supabase
-  const authState = await useSupabaseAuthState();
+  // Load auth credentials: try Supabase first, fall back to local files
+  let authState = await useSupabaseAuthState();
+
   if (!authState) {
-    log.error('Failed to initialize auth state - cannot connect');
-    throw new Error('Auth state initialization failed');
+    log.info('Using file-based auth (auth_info/) — session stored locally');
+    const fileAuth = await useMultiFileAuthState('./auth_info');
+    authState = { state: fileAuth.state, saveCreds: fileAuth.saveCreds };
   }
 
   const { state, saveCreds } = authState;

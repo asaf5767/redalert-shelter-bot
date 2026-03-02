@@ -7,6 +7,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "npx ts-node src/index.ts",
+    "setup": "node setup/setup.js",
     "clean": "rm -rf dist"
   },
   "keywords": [
