@@ -193,6 +193,17 @@ const ALERT_TYPE_NAMES_EN: Record<string, string> = {
   terroristInfiltrationDrill: 'Infiltration Drill',
 };
 
+/**
+ * Build a feature-test sequence label (for !testfeatures command).
+ * Just a header to make the test messages easy to identify.
+ */
+export function buildTestFeaturesHeader(language: 'he' | 'en'): string {
+  if (language === 'he') {
+    return `🧪 *בדיקת פיצ'רים — הנה מה שיקרה באזעקה אמיתית:*`;
+  }
+  return `🧪 *Feature test — here's what a real alert looks like:*`;
+}
+
 // =====================
 // Alert Messages
 // =====================

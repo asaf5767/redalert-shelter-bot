@@ -37,6 +37,12 @@ import {
   msgHelp,
   msgLanguageChanged,
   buildTestAlertMessage,
+  buildTestFeaturesHeader,
+  buildAlertMessage,
+  buildActivityMessage,
+  buildEndAlertMessage,
+  buildShelterWrapUpMessage,
+  buildStreakMilestoneMessage,
 } from '../utils/messages';
 import { askAI, isAIEnabled } from '../services/ai';
 import { getConversationHistory, saveMessage } from '../services/supabase';
@@ -157,6 +163,10 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
     case '!ask':
     case '!ai':
       await handleAsk(message.chatId, args, lang, message.senderName, message.messageKey);
+      break;
+
+    case '!testfeatures':
+      await handleTestFeatures(message.chatId, lang);
       break;
 
     case '!streak':
@@ -503,6 +513,41 @@ async function handleAsk(
         : '❌ Oops, AI failed to respond. Try again.';
     await sendGroupMessage(groupId, errMsg);
   }
+}
+
+/**
+ * !testfeatures
+ * Fires the full alert → activity → all-clear → wrap-up sequence with fake
+ * data so you can verify everything looks right without waiting for a real alert.
+ * Also shows a sample streak milestone message at the end.
+ */
+async function handleTestFeatures(groupId: string, lang: 'he' | 'en'): Promise<void> {
+  const fakeCities = lang === 'he' ? ['תל אביב - יפו', 'רמת גן'] : ['Tel Aviv - Yafo', 'Ramat Gan'];
+  const fakeAlert = { type: 'missiles', cities: fakeCities, instructions: '' };
+
+  // Header
+  await sendGroupMessage(groupId, buildTestFeaturesHeader(lang));
+
+  // 1. Alert message
+  await sendGroupMessage(groupId, buildAlertMessage(fakeAlert, fakeCities, lang));
+
+  // 2. Activity follow-up
+  await sendGroupMessage(groupId, buildActivityMessage(lang));
+
+  // 3. Wait 3 seconds (simulating time in shelter)
+  await new Promise((r) => setTimeout(r, 3000));
+
+  // 4. All-clear
+  await sendGroupMessage(groupId, buildEndAlertMessage(fakeCities, lang));
+
+  // 5. Wrap-up (fake 8-minute shelter)
+  await sendGroupMessage(groupId, buildShelterWrapUpMessage(8 * 60 * 1000, lang));
+
+  // 6. Sample streak milestone (24h, not a record)
+  await sendGroupMessage(groupId, buildStreakMilestoneMessage(24, false, lang));
+
+  // 7. Sample streak milestone (record)
+  await sendGroupMessage(groupId, buildStreakMilestoneMessage(48, true, lang));
 }
 
 /**
