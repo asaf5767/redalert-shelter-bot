@@ -15,6 +15,7 @@ import makeWASocket, {
   fetchLatestBaileysVersion,
   WAMessage,
   useMultiFileAuthState,
+  makeCacheableSignalKeyStore,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -103,6 +104,13 @@ export async function connectToWhatsApp(
 
   const { state, saveCreds } = authState;
 
+  // Wrap signal keys with in-memory cache to prevent race conditions
+  // during concurrent message decryption (prevents "Bad MAC" errors)
+  const cachedKeys = makeCacheableSignalKeyStore(
+    state.keys,
+    pino({ level: 'warn' }) as any
+  );
+
   // Get latest Baileys version for compatibility
   const { version } = await fetchLatestBaileysVersion();
   log.info({ version }, 'Using Baileys version');
@@ -110,11 +118,11 @@ export async function connectToWhatsApp(
   // Create the WhatsApp socket
   sock = makeWASocket({
     version,
-    logger: pino({ level: 'silent' }) as any, // Silence Baileys internal logs
+    logger: pino({ level: 'warn' }) as any, // Show decryption errors and session warnings
     printQRInTerminal: false, // We handle QR display ourselves
     auth: {
       creds: state.creds,
-      keys: state.keys,
+      keys: cachedKeys,
     },
     generateHighQualityLinkPreview: false,
     getMessage: async () => undefined, // Required by Baileys for message retries
