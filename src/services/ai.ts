@@ -1,23 +1,27 @@
 /**
- * AI Service - Groq API integration
+ * AI Service - Claude Sonnet 4.6 (primary) + Groq (fallback)
  *
  * Provides Echo's AI personality via the !ask command and natural triggers.
- * Uses Groq's OpenAI-compatible API with Llama 3.3 70B (free tier).
- * Falls back to GPT-OSS 20B if primary model fails.
+ * Primary: Claude Sonnet 4.6 via Anthropic API (set ANTHROPIC_API_KEY).
+ * Fallback: Groq Llama models if Claude fails or key is absent (set GROQ_API_KEY).
  *
- * Set GROQ_API_KEY in Railway env vars to enable.
- * Get a free key at: https://console.groq.com
+ * Set ANTHROPIC_API_KEY in Railway env vars to enable Claude.
+ * Get a key at: https://console.anthropic.com
  */
 
-import { GROQ_API_KEY } from '../config';
+import { ANTHROPIC_API_KEY, GROQ_API_KEY } from '../config';
 import { ConversationMessage } from './supabase';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('ai');
 
+const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_VERSION = '2023-06-01';
+const CLAUDE_MODEL = 'claude-sonnet-4-6';
+
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const FALLBACK_MODEL = 'llama-3.3-70b-versatile';
-const PRIMARY_MODEL = 'openai/gpt-oss-120b';
+const GROQ_PRIMARY_MODEL = 'openai/gpt-oss-120b';
+const GROQ_FALLBACK_MODEL = 'llama-3.3-70b-versatile';
 
 export const SYSTEM_PROMPT = `אתה אקו (Echo) — חבר חכם וקצת חצוף בקבוצת וואטסאפ ישראלית.
 
@@ -49,7 +53,11 @@ export const SYSTEM_PROMPT = `אתה אקו (Echo) — חבר חכם וקצת ח
 
 /** Whether the AI feature is configured and available */
 export function isAIEnabled(): boolean {
-  return Boolean(GROQ_API_KEY);
+  return Boolean(ANTHROPIC_API_KEY || GROQ_API_KEY);
+}
+
+interface AnthropicResponse {
+  content: Array<{ type: string; text: string }>;
 }
 
 interface GroqResponse {
@@ -58,6 +66,41 @@ interface GroqResponse {
       content: string;
     };
   }>;
+}
+
+/**
+ * Call Claude Sonnet 4.6 via Anthropic Messages API.
+ */
+async function callClaude(
+  messages: Array<{ role: string; content: string }>,
+  system: string
+): Promise<string> {
+  const response = await fetch(ANTHROPIC_API_URL, {
+    method: 'POST',
+    headers: {
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': ANTHROPIC_VERSION,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      system,
+      messages,
+      max_tokens: 500,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Claude ${CLAUDE_MODEL} error ${response.status}: ${errorText}`);
+  }
+
+  const data = (await response.json()) as AnthropicResponse;
+  if (!data.content || data.content.length === 0) {
+    throw new Error(`Claude ${CLAUDE_MODEL}: no content in response`);
+  }
+
+  return data.content[0].text.trim();
 }
 
 /**
@@ -108,8 +151,9 @@ function formatHistoryContext(history: ConversationMessage[]): string {
 }
 
 /**
- * Send a question to Groq and return the response.
- * Tries primary model (Llama 3.3 70B), falls back to GPT-OSS 20B.
+ * Send a question to AI and return the response.
+ * Tries Claude Sonnet 4.6 first, then falls back to Groq.
+ * Appends an italic model tag to each response.
  *
  * @param question - The user's current message
  * @param history - Recent conversation messages for context (optional)
@@ -120,34 +164,50 @@ export async function askAI(
   history?: ConversationMessage[],
   senderName?: string
 ): Promise<string> {
-  // Build the user message with context
   const contextBlock = formatHistoryContext(history || []);
   const senderPrefix = senderName ? `${senderName} שואל: ` : '';
   const userContent = contextBlock
     ? `${contextBlock}\n\n${senderPrefix}${question}`
     : `${senderPrefix}${question}`;
 
-  const messages = [
+  const userMessages = [{ role: 'user', content: userContent }];
+  // Groq expects system as part of the messages array
+  const groqMessages = [
     { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: userContent },
+    ...userMessages,
   ];
 
   log.info(
     { question, historyLength: history?.length || 0, senderName },
-    'Sending question to Groq'
+    'Sending question to AI'
   );
 
-  // Try primary model
-  try {
-    const text = await callGroqModel(messages, PRIMARY_MODEL);
-    log.info({ chars: text.length, model: PRIMARY_MODEL }, 'Got Groq response');
-    return text;
-  } catch (err) {
-    log.warn({ err, model: PRIMARY_MODEL }, 'Primary model failed, trying fallback');
+  // 1. Try Claude Sonnet 4.6
+  if (ANTHROPIC_API_KEY) {
+    try {
+      const text = await callClaude(userMessages, SYSTEM_PROMPT);
+      log.info({ chars: text.length, model: CLAUDE_MODEL }, 'Got Claude response');
+      return `${text}\n_(Claude Sonnet)_`;
+    } catch (err) {
+      log.warn({ err }, 'Claude failed, falling back to Groq');
+    }
   }
 
-  // Try fallback model
-  const text = await callGroqModel(messages, FALLBACK_MODEL);
-  log.info({ chars: text.length, model: FALLBACK_MODEL }, 'Got Groq fallback response');
-  return text;
+  // 2. Try Groq primary
+  if (GROQ_API_KEY) {
+    try {
+      const text = await callGroqModel(groqMessages, GROQ_PRIMARY_MODEL);
+      log.info({ chars: text.length, model: GROQ_PRIMARY_MODEL }, 'Got Groq response');
+      return `${text}\n_(Groq)_`;
+    } catch (err) {
+      log.warn({ err, model: GROQ_PRIMARY_MODEL }, 'Groq primary failed, trying fallback');
+    }
+
+    // 3. Try Groq fallback
+    const text = await callGroqModel(groqMessages, GROQ_FALLBACK_MODEL);
+    log.info({ chars: text.length, model: GROQ_FALLBACK_MODEL }, 'Got Groq fallback response');
+    return `${text}\n_(Groq)_`;
+  }
+
+  throw new Error('No AI provider available — set ANTHROPIC_API_KEY or GROQ_API_KEY');
 }
