@@ -8,7 +8,18 @@
     "start": "node dist/index.js",
     "dev": "npx ts-node src/index.ts",
     "setup": "node setup/setup.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "jest"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/tests"],
+    "moduleNameMapper": {
+      "^../config$": "<rootDir>/tests/__mocks__/config.ts",
+      "^./config$": "<rootDir>/tests/__mocks__/config.ts",
+      "^../../config$": "<rootDir>/tests/__mocks__/config.ts"
+    }
   },
   "keywords": [
     "whatsapp",
@@ -27,7 +38,10 @@
     "socket.io-client": "^4.7.0"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
     "ts-node": "^10.9.0",
     "typescript": "^5.3.0"
   }

@@ -398,7 +398,7 @@ const SEPARATORS = [' - ', ' – ', '-', ' '];
  * - Alert is prefix: "ראש העין - מזרח" matches "ראש העין" ✅
  * - Substring in middle: "כרמל" does NOT match "טירת כרמל" ❌
  */
-function isCityMatch(groupCity: string, alertCity: string): boolean {
+export function isCityMatch(groupCity: string, alertCity: string): boolean {
   // Exact match
   if (groupCity === alertCity) return true;
 

@@ -440,6 +440,14 @@ export function msgCityNotFound(city: string, language: 'he' | 'en'): string {
   return `❌ "${city}" isn't being monitored. Sure you spelled it right?`;
 }
 
+/** Welcome message sent when the bot joins a group for the first time */
+export function msgWelcome(language: 'he' | 'en'): string {
+  if (language === 'he') {
+    return `👋 שלום לכולם! אני בוט שמחובר למערכת ההתרעות של פיקוד העורף — יודע בדיוק מתי לומר לכם להיכנס לממ"ד ומתי אפשר לצאת.\n\nכדי להתחיל:\n• *!addcity* שם עיר — להוסיף עיר למעקב\n• *!help* — לכל הפקודות\n\nאפשר גם לדבר איתי — כתבו *אקו* לפני כל שאלה 🤖`;
+  }
+  return `👋 Hey everyone! I'm connected to the Pikud HaOref alert system — I'll tell you exactly when to get to your shelter and when it's safe to come out.\n\nTo get started:\n• *!addcity* city name — add a city to watch\n• *!help* — see all commands\n\nYou can also chat with me — just write *echo* before any question 🤖`;
+}
+
 /** Language changed confirmation */
 export function msgLanguageChanged(language: 'he' | 'en'): string {
   if (language === 'he') {
