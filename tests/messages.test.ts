@@ -9,6 +9,7 @@ import {
   msgLanguageChanged,
   buildAlertMessage,
   buildEndAlertMessage,
+  buildNewsFlashMessage,
   buildStreakMilestoneMessage,
   buildShelterWrapUpMessage,
   getRandomActivity,
@@ -276,6 +277,16 @@ describe('buildAlertMessage', () => {
     const msg = buildAlertMessage(earthquakeAlert, ['ירושלים'], 'he');
     expect(msg).toContain('רעידת אדמה');
   });
+
+  it('Hebrew: uses professional alert header', () => {
+    const msg = buildAlertMessage(missilesAlert, ['תל אביב'], 'he');
+    expect(msg).toContain('התראה');
+  });
+
+  it('English: uses professional alert header', () => {
+    const msg = buildAlertMessage(missilesAlert, ['Tel Aviv'], 'en');
+    expect(msg).toContain('Alert');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -296,12 +307,42 @@ describe('buildEndAlertMessage', () => {
   it('Hebrew: signals all-clear', () => {
     const msg = buildEndAlertMessage(['תל אביב'], 'he');
     // should say it's over / safe
-    expect(msg).toMatch(/נגמר|לצאת/);
+    expect(msg).toMatch(/הסתיים|לצאת/);
   });
 
   it('English: signals all-clear', () => {
     const msg = buildEndAlertMessage(['Tel Aviv'], 'en');
-    expect(msg).toMatch(/clear|free/i);
+    expect(msg).toMatch(/ended|leave/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildNewsFlashMessage
+// ---------------------------------------------------------------------------
+
+describe('buildNewsFlashMessage', () => {
+  it('Hebrew: contains advance notice header', () => {
+    const msg = buildNewsFlashMessage(['תל אביב'], 'he');
+    expect(msg).toContain('הודעה מקדימה');
+  });
+
+  it('Hebrew: contains city name', () => {
+    const msg = buildNewsFlashMessage(['חיפה'], 'he');
+    expect(msg).toContain('חיפה');
+  });
+
+  it('English: contains advance notice header', () => {
+    const msg = buildNewsFlashMessage(['Tel Aviv'], 'en');
+    expect(msg).toContain('Advance Notice');
+  });
+
+  it('English: contains city name', () => {
+    const msg = buildNewsFlashMessage(['Haifa'], 'en');
+    expect(msg).toContain('Haifa');
+  });
+
+  it('he/en messages are different', () => {
+    expect(buildNewsFlashMessage(['city'], 'he')).not.toBe(buildNewsFlashMessage(['city'], 'en'));
   });
 });
 
