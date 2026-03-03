@@ -34,6 +34,9 @@ const MAX_RECONNECT_ATTEMPTS = 15;
 // Message handler callback
 let messageHandler: MessageHandler | null = null;
 
+// Group-join handler callback
+let groupJoinHandler: ((groupId: string) => Promise<void>) | null = null;
+
 // Track connection readiness
 let isConnected = false;
 
@@ -63,10 +66,14 @@ const MESSAGE_DEDUP_TTL_MS = 60_000; // 60 seconds
  */
 export async function connectToWhatsApp(
   onConnected?: () => void,
-  onMessage?: MessageHandler
+  onMessage?: MessageHandler,
+  onGroupJoin?: (groupId: string) => Promise<void>
 ): Promise<void> {
   if (onMessage) {
     messageHandler = onMessage;
+  }
+  if (onGroupJoin) {
+    groupJoinHandler = onGroupJoin;
   }
 
   // Clean up previous socket before creating a new one.
@@ -78,6 +85,7 @@ export async function connectToWhatsApp(
       sock.ev.removeAllListeners('connection.update');
       sock.ev.removeAllListeners('creds.update');
       sock.ev.removeAllListeners('messages.upsert');
+      sock.ev.removeAllListeners('group-participants.update');
       sock.end(undefined);
     } catch (err) {
       log.warn({ err }, 'Error cleaning up old socket (non-fatal)');
@@ -187,6 +195,32 @@ export async function connectToWhatsApp(
 
   // ---- Event: Save Credentials ----
   sock.ev.on('creds.update', saveCreds);
+
+  // ---- Event: Group Participants Changed ----
+  // Fires when participants are added/removed. Used to detect when the bot joins a group.
+  sock.ev.on('group-participants.update', async ({ id, participants, action }: { id: string; participants: string[]; action: string }) => {
+    if (action !== 'add') return;
+    if (!groupJoinHandler) return;
+
+    // Check if the bot itself is among the added participants
+    const extractId = (j: string) => j.split('@')[0].split(':')[0];
+    const botId = sock?.user?.id ? extractId(sock.user.id) : null;
+    const botLid = (sock?.user as any)?.lid ? extractId((sock!.user as any).lid) : null;
+
+    const botWasAdded = participants.some((p: string) => {
+      const pid = extractId(p);
+      return (botId && botId === pid) || (botLid && botLid === pid);
+    });
+
+    if (botWasAdded) {
+      log.info({ groupId: id }, 'Bot was added to a group — sending welcome');
+      try {
+        await groupJoinHandler(id);
+      } catch (err) {
+        log.error({ err, groupId: id }, 'Error in group-join handler');
+      }
+    }
+  });
 
   // ---- Event: Incoming Messages ----
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
