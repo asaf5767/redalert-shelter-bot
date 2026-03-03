@@ -43,7 +43,10 @@ export const REDALERT_SERVER = 'https://redalert.orielhaim.com';
 // AI Config
 // =====================
 
-/** Groq API key (enables Echo AI chat) */
+/** Anthropic API key (enables Claude Sonnet 4.6 as primary AI) */
+export const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+
+/** Groq API key (enables Echo AI chat, used as fallback if Claude fails) */
 export const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 
 /** Google Gemini API key (legacy, kept for fallback) */
