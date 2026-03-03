@@ -36,6 +36,7 @@ import {
   msgStatus,
   msgHelp,
   msgLanguageChanged,
+  msgWelcome,
   buildTestAlertMessage,
 } from '../utils/messages';
 import { askAI, isAIEnabled } from '../services/ai';
@@ -579,6 +580,24 @@ async function handleActivities(
       : `🎮 Shelter activities disabled.`;
 
   await sendGroupMessage(groupId, msg);
+}
+
+// =====================
+// Group Join
+// =====================
+
+/**
+ * Called when the bot is added to a group.
+ * Creates the group config (if needed) and sends a welcome message.
+ */
+export async function handleGroupJoin(groupId: string): Promise<void> {
+  let config = groupConfig.getGroupConfig(groupId);
+  if (!config) {
+    await groupConfig.approveGroup(groupId);
+    config = groupConfig.getGroupConfig(groupId);
+  }
+  const lang = config?.language || 'he';
+  await sendGroupMessage(groupId, msgWelcome(lang));
 }
 
 // =====================

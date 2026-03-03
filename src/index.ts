@@ -19,7 +19,7 @@ import { connectToWhatsApp } from './services/whatsapp';
 import { connectToRedAlert, disconnectRedAlert } from './services/redalert';
 import * as groupConfig from './core/group-config';
 import { handleAlert, handleEndAlert } from './core/alert-router';
-import { handleMessage } from './core/command-handler';
+import { handleMessage, handleGroupJoin } from './core/command-handler';
 import { startStreakTimer } from './core/streak-tracker';
 import { createLogger } from './utils/logger';
 
@@ -102,7 +102,9 @@ async function main(): Promise<void> {
       console.log('');
     },
     // onMessage callback (for chat commands)
-    handleMessage
+    handleMessage,
+    // onGroupJoin callback (send welcome when bot is added to a group)
+    handleGroupJoin
   );
 }
 
