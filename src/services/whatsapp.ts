@@ -227,6 +227,12 @@ export async function connectToWhatsApp(
     // Only process new messages, not history sync
     if (type !== 'notify') return;
 
+    // Dedup first, then process all messages concurrently.
+    // Sequential `await` in a loop caused the second message to be
+    // dropped when two messages arrived in quick succession (the handler
+    // for message 1 — especially AI calls — blocked message 2).
+    const toProcess: Array<{ message: typeof messages[0]; incoming: IncomingMessage }> = [];
+
     for (const message of messages) {
       // Dedup: skip messages we have already processed.
       // Protects against Baileys delivering the same message twice
@@ -311,14 +317,18 @@ export async function connectToWhatsApp(
         },
       };
 
-      // Call the message handler (command processor)
-      if (messageHandler) {
-        try {
-          await messageHandler(incoming);
-        } catch (err) {
-          log.error({ err, chatId }, 'Error in message handler');
-        }
-      }
+      toProcess.push({ message, incoming });
+    }
+
+    // Process all messages concurrently — no message waits for another
+    if (messageHandler && toProcess.length > 0) {
+      await Promise.allSettled(
+        toProcess.map(({ incoming }) =>
+          messageHandler!(incoming).catch(err =>
+            log.error({ err, chatId: incoming.chatId }, 'Error in message handler')
+          )
+        )
+      );
     }
   });
 }
