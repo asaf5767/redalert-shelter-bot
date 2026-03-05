@@ -10,8 +10,6 @@ import {
   buildAlertMessage,
   buildEndAlertMessage,
   buildNewsFlashMessage,
-  buildStreakMilestoneMessage,
-  buildShelterWrapUpMessage,
   getRandomActivity,
 } from '../src/utils/messages';
 import { RedAlertEvent } from '../src/types';
@@ -76,7 +74,7 @@ describe('msgHelp', () => {
   const ALL_COMMANDS = [
     '!addcity', '!removecity', '!cities', '!search',
     '!clearalerts', '!lang', '!status', '!test',
-    '!streak', '!activities', '!help',
+    '!activities', '!help',
   ];
 
   it('Hebrew: contains all commands', () => {
@@ -306,13 +304,29 @@ describe('buildEndAlertMessage', () => {
 
   it('Hebrew: signals all-clear', () => {
     const msg = buildEndAlertMessage(['תל אביב'], 'he');
-    // should say it's over / safe
     expect(msg).toMatch(/הסתיים|לצאת/);
   });
 
   it('English: signals all-clear', () => {
     const msg = buildEndAlertMessage(['Tel Aviv'], 'en');
     expect(msg).toMatch(/ended|leave/i);
+  });
+
+  it('Hebrew: includes duration when durationMs provided', () => {
+    const msg = buildEndAlertMessage(['תל אביב'], 'he', 5 * 60_000);
+    expect(msg).toContain('5');
+    expect(msg).toContain('ממ"ד');
+  });
+
+  it('English: includes duration when durationMs provided', () => {
+    const msg = buildEndAlertMessage(['Tel Aviv'], 'en', 3 * 60_000);
+    expect(msg).toContain('3');
+    expect(msg).toContain('shelter');
+  });
+
+  it('does not include duration line when durationMs is absent', () => {
+    const msg = buildEndAlertMessage(['תל אביב'], 'he');
+    expect(msg).not.toContain('⏱️');
   });
 });
 
@@ -343,72 +357,6 @@ describe('buildNewsFlashMessage', () => {
 
   it('he/en messages are different', () => {
     expect(buildNewsFlashMessage(['city'], 'he')).not.toBe(buildNewsFlashMessage(['city'], 'en'));
-  });
-});
-
-// ---------------------------------------------------------------------------
-// buildStreakMilestoneMessage
-// ---------------------------------------------------------------------------
-
-describe('buildStreakMilestoneMessage', () => {
-  it('Hebrew: 6h milestone contains duration', () => {
-    const msg = buildStreakMilestoneMessage(6, false, 'he');
-    expect(msg).toContain('6');
-  });
-
-  it('Hebrew: 24h milestone shows "יום שלם"', () => {
-    const msg = buildStreakMilestoneMessage(24, false, 'he');
-    expect(msg).toContain('יום שלם');
-  });
-
-  it('Hebrew: record shows trophy and record wording', () => {
-    const msg = buildStreakMilestoneMessage(24, true, 'he');
-    expect(msg).toContain('🏆');
-    expect(msg).toContain('שיא');
-  });
-
-  it('English: record shows trophy', () => {
-    const msg = buildStreakMilestoneMessage(24, true, 'en');
-    expect(msg).toContain('🏆');
-    expect(msg).toContain('record');
-  });
-
-  it('all messages include disable instruction', () => {
-    expect(buildStreakMilestoneMessage(6, false, 'he')).toContain('!streak off');
-    expect(buildStreakMilestoneMessage(6, false, 'en')).toContain('!streak off');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// buildShelterWrapUpMessage
-// ---------------------------------------------------------------------------
-
-describe('buildShelterWrapUpMessage', () => {
-  it('Hebrew: under 1 minute label', () => {
-    // 10 seconds → Math.round(10000/60000) = 0 → "פחות מדקה"
-    const msg = buildShelterWrapUpMessage(10_000, 'he');
-    expect(msg).toContain('פחות מדקה');
-  });
-
-  it('Hebrew: exactly 1 minute label', () => {
-    const msg = buildShelterWrapUpMessage(60_000, 'he');
-    expect(msg).toContain('כדקה');
-  });
-
-  it('Hebrew: 5 minutes label', () => {
-    const msg = buildShelterWrapUpMessage(5 * 60_000, 'he');
-    expect(msg).toContain('5');
-  });
-
-  it('English: under 1 minute label', () => {
-    // 10 seconds → Math.round(10000/60000) = 0 → "under a minute"
-    const msg = buildShelterWrapUpMessage(10_000, 'en');
-    expect(msg).toContain('under a minute');
-  });
-
-  it('English: 3 minutes label', () => {
-    const msg = buildShelterWrapUpMessage(3 * 60_000, 'en');
-    expect(msg).toContain('3');
   });
 });
 

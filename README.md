@@ -65,10 +65,8 @@ flowchart LR
 <td width="33%" valign="top">
 
 ### 🎮 Engagement
-- **Streak tracker** — celebrates silence milestones (6h → 12h → 24h → week)
 - **Shelter activities** — 26 mini-challenges during alerts
 - Per-group toggles
-- Record tracking per group
 
 </td>
 </tr>
@@ -147,7 +145,6 @@ For the database, run [`setup/schema.sql`](setup/schema.sql) in your [Supabase S
 | `!status` | Show bot status |
 | `!test` | Send test alert |
 | `!help` | Show all commands |
-| `!streak` on/off | Silence streak tracker |
 | `!activities` on/off | Shelter challenges |
 
 </td>
@@ -209,7 +206,6 @@ graph TB
         AR["alert-router.ts<br/>Dedup · Shelter Tracking"]
         GC["group-config.ts<br/>City Matching"]
         CMD["command-handler.ts<br/>Chat Commands"]
-        ST["streak-tracker.ts<br/>Milestones"]
         AI["ai.ts<br/>Echo Chat"]
         MSG["messages.ts<br/>Templates (HE/EN)"]
         CD["city-database.ts<br/>1,449 Cities"]
@@ -223,7 +219,6 @@ graph TB
     CMD --> AI
     AI --> GR
     CMD --> GC
-    ST -->|milestone msg| WA
     GC <-->|sync| SB
 
     style RA fill:#f39c12,color:#fff,stroke:none
@@ -249,8 +244,7 @@ src/
 │   ├── alert-router.ts     # Routes alerts → groups, dedup, shelter tracking
 │   ├── group-config.ts     # Per-group city config (in-memory + DB sync)
 │   ├── command-handler.ts  # Chat command processing
-│   ├── city-database.ts    # 1,449 cities from Pikud HaOref
-│   └── streak-tracker.ts   # Silence streak milestones
+│   └── city-database.ts    # 1,449 cities from Pikud HaOref
 ├── utils/
 │   ├── logger.ts           # Pino structured logging
 │   └── messages.ts         # All message templates (Hebrew + English)

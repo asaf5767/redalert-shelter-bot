@@ -43,7 +43,7 @@ import { askAI, isAIEnabled } from '../services/ai';
 import { getConversationHistory, saveMessage } from '../services/supabase';
 import { createLogger } from '../utils/logger';
 import { BOT_PHONE_NUMBER } from '../config';
-import { setStreakEnabled, setActivitiesEnabled } from './group-config';
+import { setActivitiesEnabled } from './group-config';
 
 const log = createLogger('commands');
 
@@ -158,10 +158,6 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
     case '!ask':
     case '!ai':
       await handleAsk(message.chatId, args, lang, message.senderName, message.messageKey);
-      break;
-
-    case '!streak':
-      await handleStreak(message.chatId, args, lang);
       break;
 
     case '!activities':
@@ -504,44 +500,6 @@ async function handleAsk(
         : '❌ Oops, AI failed to respond. Try again.';
     await sendGroupMessage(groupId, errMsg);
   }
-}
-
-/**
- * !streak on/off
- * Toggle streak milestone announcements (hours of silence since last alert).
- */
-async function handleStreak(
-  groupId: string,
-  args: string,
-  lang: 'he' | 'en'
-): Promise<void> {
-  const config = groupConfig.getGroupConfig(groupId);
-  if (!config) return;
-
-  const arg = args.trim().toLowerCase();
-
-  if (arg !== 'on' && arg !== 'off') {
-    const isOn = config.settings.streakEnabled !== false;
-    const current = isOn ? (lang === 'he' ? 'פעיל ✅' : 'on ✅') : (lang === 'he' ? 'כבוי ❌' : 'off ❌');
-    const hint = lang === 'he'
-      ? `⏱️ *מד הרצף* — עוקב אחרי שעות שקט בין אזעקות.\n\nמצב נוכחי: ${current}\n\nשלחו *!streak on* להפעיל או *!streak off* לכבות.`
-      : `⏱️ *Streak tracker* — counts quiet hours between alerts.\n\nCurrent: ${current}\n\nSend *!streak on* to enable or *!streak off* to disable.`;
-    await sendGroupMessage(groupId, hint);
-    return;
-  }
-
-  const enabled = arg === 'on';
-  await setStreakEnabled(groupId, enabled);
-
-  const msg = lang === 'he'
-    ? enabled
-      ? `⏱️ מד הרצף הופעל! אודיע כשיעברו 6, 12, 24 שעות ויותר ללא אזעקות 🕊️`
-      : `⏱️ מד הרצף כובה.`
-    : enabled
-      ? `⏱️ Streak tracker enabled! I'll announce milestones at 6h, 12h, 24h+ of silence 🕊️`
-      : `⏱️ Streak tracker disabled.`;
-
-  await sendGroupMessage(groupId, msg);
 }
 
 /**

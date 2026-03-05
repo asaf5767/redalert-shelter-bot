@@ -363,6 +363,25 @@ export async function logAlert(entry: AlertLogEntry): Promise<void> {
   }
 }
 
+/**
+ * Count shelter visits (endAlert events) for a group since a given date.
+ */
+export async function getShelterVisitCount(groupId: string, since: string): Promise<number> {
+  if (!supabase) return 0;
+  try {
+    const { count, error } = await supabase
+      .from(ALERT_LOG_TABLE)
+      .select('*', { count: 'exact', head: true })
+      .eq('event_type', 'endAlert')
+      .contains('groups_notified', [groupId])
+      .gte('created_at', since);
+    if (error) return 0;
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 // =====================
 // Message History
 // =====================
