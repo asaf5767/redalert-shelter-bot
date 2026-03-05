@@ -233,13 +233,13 @@ export function buildEndAlertMessage(
     let msg = `🚪 *האירוע הסתיים*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `ניתן לצאת מהמרחב המוגן. שמרו על עצמכם 💙`;
-    if (durationLabel) msg += `\n\n⏱️ *${durationLabel} בממ"ד* — כולם בחוץ? 🤞`;
+    if (durationLabel) msg += `\n\n⏱️ *${durationLabel} בממ"ד* — נשמו לרווחה 😮‍💨`;
     return msg;
   } else {
     let msg = `🚪 *Event Ended*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `You may leave the safe room. Stay safe 💙`;
-    if (durationLabel) msg += `\n\n⏱️ *${durationLabel} in the shelter* — everyone out? 🤞`;
+    if (durationLabel) msg += `\n\n⏱️ *${durationLabel} in the shelter* — breathe easy 😮‍💨`;
     return msg;
   }
 }
