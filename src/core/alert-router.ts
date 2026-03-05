@@ -22,7 +22,6 @@ import {
   buildActivityMessage,
   buildEndAlertMessage,
   buildNewsFlashMessage,
-  buildShelterWrapUpMessage,
 } from '../utils/messages';
 import { createLogger } from '../utils/logger';
 
@@ -315,8 +314,19 @@ export async function handleEndAlert(alert: RedAlertEvent): Promise<void> {
     const config = groupConfig.getGroupConfig(groupId);
     const language = config?.language || 'he';
 
-    // Send the "safe to leave" message
-    const message = buildEndAlertMessage(clearedCities, language);
+    // Compute duration if this ends the shelter session
+    let durationMs: number | undefined;
+    if (shelter.size === 0) {
+      activeShelters.delete(groupId);
+      const startTime = shelterStartTimes.get(groupId);
+      if (startTime) {
+        durationMs = Date.now() - startTime;
+        shelterStartTimes.delete(groupId);
+      }
+    }
+
+    // Send the "safe to leave" message, including shelter duration when available
+    const message = buildEndAlertMessage(clearedCities, language, durationMs);
 
     log.info(
       {
@@ -329,18 +339,6 @@ export async function handleEndAlert(alert: RedAlertEvent): Promise<void> {
 
     await sendGroupMessage(groupId, message);
     groupsNotified.push(groupId);
-
-    // If no more active cities, clean up and send a wrap-up with duration
-    if (shelter.size === 0) {
-      activeShelters.delete(groupId);
-
-      const startTime = shelterStartTimes.get(groupId);
-      if (startTime) {
-        const durationMs = Date.now() - startTime;
-        await sendGroupMessage(groupId, buildShelterWrapUpMessage(durationMs, language));
-        shelterStartTimes.delete(groupId);
-      }
-    }
   }
 
   // Log the end alert

@@ -187,28 +187,6 @@ export function buildActivityMessage(language: 'he' | 'en'): string {
 }
 
 /**
- * Build a wrap-up message sent after shelter fully clears,
- * summarising how long the group was in shelter.
- */
-export function buildShelterWrapUpMessage(durationMs: number, language: 'he' | 'en'): string {
-  const minutes = Math.round(durationMs / 60_000);
-
-  if (language === 'he') {
-    const label =
-      minutes < 1 ? 'פחות מדקה' :
-      minutes === 1 ? 'כדקה' :
-      `כ-${minutes} דקות`;
-    return `⏱️ *${label} בממ"ד* — כולם בחוץ? 🤞`;
-  } else {
-    const label =
-      minutes < 1 ? 'under a minute' :
-      minutes === 1 ? 'about 1 minute' :
-      `about ${minutes} minutes`;
-    return `⏱️ *${label} in the shelter* — everyone out? 🤞`;
-  }
-}
-
-/**
  * Build a newsFlash message - heads-up that an alert may come soon.
  */
 export function buildNewsFlashMessage(
@@ -232,22 +210,36 @@ export function buildNewsFlashMessage(
 
 /**
  * Build the "safe to leave shelter" message for an end alert.
+ * If durationMs is provided, the shelter time is included in the message.
  */
 export function buildEndAlertMessage(
   clearedCities: string[],
-  language: 'he' | 'en'
+  language: 'he' | 'en',
+  durationMs?: number
 ): string {
   const cities = clearedCities.join(', ');
+
+  let durationLabel = '';
+  if (durationMs !== undefined) {
+    const minutes = Math.round(durationMs / 60_000);
+    if (language === 'he') {
+      durationLabel = minutes < 1 ? 'פחות מדקה' : minutes === 1 ? 'כדקה' : `כ-${minutes} דקות`;
+    } else {
+      durationLabel = minutes < 1 ? 'under a minute' : minutes === 1 ? 'about 1 minute' : `about ${minutes} minutes`;
+    }
+  }
 
   if (language === 'he') {
     let msg = `🚪 *האירוע הסתיים*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `ניתן לצאת מהמרחב המוגן. שמרו על עצמכם 💙`;
+    if (durationLabel) msg += `\n\n⏱️ *${durationLabel} בממ"ד* — כולם בחוץ? 🤞`;
     return msg;
   } else {
     let msg = `🚪 *Event Ended*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `You may leave the safe room. Stay safe 💙`;
+    if (durationLabel) msg += `\n\n⏱️ *${durationLabel} in the shelter* — everyone out? 🤞`;
     return msg;
   }
 }
