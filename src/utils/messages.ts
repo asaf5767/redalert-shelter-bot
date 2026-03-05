@@ -104,62 +104,6 @@ export function getRandomActivity(): string {
 }
 
 // =====================
-// Streak Messages
-// =====================
-
-/** Format streak duration in Hebrew or English */
-function formatStreakDuration(hours: number, language: 'he' | 'en'): string {
-  if (language === 'he') {
-    if (hours < 24) return `${hours} שעות`;
-    if (hours < 48) return 'יום שלם';
-    if (hours < 168) return `${Math.round(hours / 24)} ימים`;
-    return 'שבוע שלם';
-  } else {
-    if (hours < 24) return `${hours} hours`;
-    if (hours < 48) return 'a full day';
-    if (hours < 168) return `${Math.round(hours / 24)} days`;
-    return 'a full week';
-  }
-}
-
-/** Casual Hebrew/English comments per milestone */
-const STREAK_COMMENTS: Record<number, { he: string; en: string }> = {
-  6:   { he: 'נושמים רגע ☀️', en: 'Taking a breath ☀️' },
-  12:  { he: 'חצי יום של שקט — נהנים ממנו 😎', en: 'Half a day of quiet — enjoying it 😎' },
-  24:  { he: 'יום שלם ללא אזעקות. ממשיכים כך 💙', en: 'A full day without alerts. Let\'s keep it 💙' },
-  48:  { he: 'יומיים! כבר אפשר להירגע קצת 😌', en: 'Two days! Starting to relax 😌' },
-  72:  { he: 'שלושה ימים. נראה טוב מאוד 💪', en: 'Three days. Looking really good 💪' },
-  168: { he: 'שבוע שלם! זה ממש מרשים 🌟', en: 'A whole week! That\'s seriously impressive 🌟' },
-};
-
-/**
- * Build a streak milestone announcement message.
- * @param hours - Which milestone (6, 12, 24, 48, 72, or 168)
- * @param isRecord - Whether this beats the group's previous record
- * @param language - Message language
- */
-export function buildStreakMilestoneMessage(
-  hours: number,
-  isRecord: boolean,
-  language: 'he' | 'en'
-): string {
-  const duration = formatStreakDuration(hours, language);
-  const comment = STREAK_COMMENTS[hours] ?? { he: 'רגוע פה 🕊️', en: 'Quiet here 🕊️' };
-
-  if (language === 'he') {
-    if (isRecord) {
-      return `🏆 *שיא חדש!*\n\nכבר *${duration}* ללא אזעקות — הכי ארוך שהיה! ממשיכים לשמור 🤞\n\n_כיבוי: !streak off_`;
-    }
-    return `🕊️ *${duration} ללא אזעקות*\n\n${comment.he}\n\n_כיבוי: !streak off_`;
-  } else {
-    if (isRecord) {
-      return `🏆 *New record!*\n\n*${duration}* without alerts — personal best! Keep it going 🤞\n\n_disable: !streak off_`;
-    }
-    return `🕊️ *${duration} without alerts*\n\n${comment.en}\n\n_disable: !streak off_`;
-  }
-}
-
-// =====================
 // Alert Type Display Names
 // =====================
 
@@ -412,7 +356,6 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!lang* he/en - לשנות שפה
 *!status* - מה המצב שלי
 *!test* - בדיקת חיים
-*!streak* on/off - מד שעות שקט בין אזעקות ⏱️
 *!activities* on/off - אתגרים קטנים בזמן האזעקה 🎮
 *!ask* שאלה - לשאול את ה-AI כל שאלה 🤖
 *אקו* שאלה - אותו דבר, רק יותר טבעי 😎
@@ -429,7 +372,6 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!lang* he/en - Change language
 *!status* - How I'm doing
 *!test* - Am I alive?
-*!streak* on/off - Silence streak milestones ⏱️
 *!activities* on/off - Mini shelter challenges 🎮
 *!ask* question - Ask the AI anything 🤖
 *echo* question - Same thing, just more natural 😎

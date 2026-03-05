@@ -24,7 +24,6 @@ import {
   buildNewsFlashMessage,
   buildShelterWrapUpMessage,
 } from '../utils/messages';
-import { onAlertFired } from './streak-tracker';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('alert-router');
@@ -214,9 +213,6 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
     if (config.settings?.activitiesEnabled !== false && !wasAlreadySheltering) {
       await sendGroupMessage(groupId, buildActivityMessage(config.language));
     }
-
-    // Reset streak clock — a new alert just fired for this group
-    onAlertFired(groupId).catch(() => {});
   }
 
   // Log once

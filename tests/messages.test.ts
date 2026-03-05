@@ -10,7 +10,6 @@ import {
   buildAlertMessage,
   buildEndAlertMessage,
   buildNewsFlashMessage,
-  buildStreakMilestoneMessage,
   buildShelterWrapUpMessage,
   getRandomActivity,
 } from '../src/utils/messages';
@@ -76,7 +75,7 @@ describe('msgHelp', () => {
   const ALL_COMMANDS = [
     '!addcity', '!removecity', '!cities', '!search',
     '!clearalerts', '!lang', '!status', '!test',
-    '!streak', '!activities', '!help',
+    '!activities', '!help',
   ];
 
   it('Hebrew: contains all commands', () => {
@@ -343,39 +342,6 @@ describe('buildNewsFlashMessage', () => {
 
   it('he/en messages are different', () => {
     expect(buildNewsFlashMessage(['city'], 'he')).not.toBe(buildNewsFlashMessage(['city'], 'en'));
-  });
-});
-
-// ---------------------------------------------------------------------------
-// buildStreakMilestoneMessage
-// ---------------------------------------------------------------------------
-
-describe('buildStreakMilestoneMessage', () => {
-  it('Hebrew: 6h milestone contains duration', () => {
-    const msg = buildStreakMilestoneMessage(6, false, 'he');
-    expect(msg).toContain('6');
-  });
-
-  it('Hebrew: 24h milestone shows "יום שלם"', () => {
-    const msg = buildStreakMilestoneMessage(24, false, 'he');
-    expect(msg).toContain('יום שלם');
-  });
-
-  it('Hebrew: record shows trophy and record wording', () => {
-    const msg = buildStreakMilestoneMessage(24, true, 'he');
-    expect(msg).toContain('🏆');
-    expect(msg).toContain('שיא');
-  });
-
-  it('English: record shows trophy', () => {
-    const msg = buildStreakMilestoneMessage(24, true, 'en');
-    expect(msg).toContain('🏆');
-    expect(msg).toContain('record');
-  });
-
-  it('all messages include disable instruction', () => {
-    expect(buildStreakMilestoneMessage(6, false, 'he')).toContain('!streak off');
-    expect(buildStreakMilestoneMessage(6, false, 'en')).toContain('!streak off');
   });
 });
 
