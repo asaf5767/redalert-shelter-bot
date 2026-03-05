@@ -16,7 +16,7 @@
 import { RedAlertEvent, GroupConfig } from '../types';
 import * as groupConfig from './group-config';
 import { sendGroupMessage } from '../services/whatsapp';
-import { logAlert } from '../services/supabase';
+import { logAlert, getShelterVisitCount } from '../services/supabase';
 import {
   buildAlertMessage,
   buildActivityMessage,
@@ -314,8 +314,9 @@ export async function handleEndAlert(alert: RedAlertEvent): Promise<void> {
     const config = groupConfig.getGroupConfig(groupId);
     const language = config?.language || 'he';
 
-    // Compute duration if this ends the shelter session
+    // Compute duration and visit count if this ends the shelter session
     let durationMs: number | undefined;
+    let visitCount: number | undefined;
     if (shelter.size === 0) {
       activeShelters.delete(groupId);
       const startTime = shelterStartTimes.get(groupId);
@@ -323,10 +324,12 @@ export async function handleEndAlert(alert: RedAlertEvent): Promise<void> {
         durationMs = Date.now() - startTime;
         shelterStartTimes.delete(groupId);
       }
+      // +1 to include the current visit (logged after we send the message)
+      visitCount = (await getShelterVisitCount(groupId, '2026-02-28')) + 1;
     }
 
     // Send the "safe to leave" message, including shelter duration when available
-    const message = buildEndAlertMessage(clearedCities, language, durationMs);
+    const message = buildEndAlertMessage(clearedCities, language, durationMs, visitCount);
 
     log.info(
       {

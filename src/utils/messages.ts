@@ -215,7 +215,8 @@ export function buildNewsFlashMessage(
 export function buildEndAlertMessage(
   clearedCities: string[],
   language: 'he' | 'en',
-  durationMs?: number
+  durationMs?: number,
+  visitCount?: number
 ): string {
   const cities = clearedCities.join(', ');
 
@@ -233,13 +234,21 @@ export function buildEndAlertMessage(
     let msg = `🚪 *האירוע הסתיים*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `ניתן לצאת מהמרחב המוגן. שמרו על עצמכם 💙`;
-    if (durationLabel) msg += `\n\n⏱️ *${durationLabel} בממ"ד* — נשמו לרווחה 😮‍💨`;
+    if (durationLabel || visitCount !== undefined) {
+      msg += `\n`;
+      if (durationLabel) msg += `\n⏱️ סה"כ זמן בממ"ד: *${durationLabel}*`;
+      if (visitCount !== undefined) msg += `\n📊 סה"כ ביקורים בממ"ד מאז 28/2: *${visitCount}*`;
+    }
     return msg;
   } else {
     let msg = `🚪 *Event Ended*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `You may leave the safe room. Stay safe 💙`;
-    if (durationLabel) msg += `\n\n⏱️ *${durationLabel} in the shelter* — breathe easy 😮‍💨`;
+    if (durationLabel || visitCount !== undefined) {
+      msg += `\n`;
+      if (durationLabel) msg += `\n⏱️ Time in shelter: *${durationLabel}*`;
+      if (visitCount !== undefined) msg += `\n📊 Total shelter visits since 28/2: *${visitCount}*`;
+    }
     return msg;
   }
 }
