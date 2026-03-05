@@ -234,20 +234,20 @@ export function buildEndAlertMessage(
     let msg = `🚪 *האירוע הסתיים*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `ניתן לצאת מהמרחב המוגן. שמרו על עצמכם 💙`;
-    if (durationLabel || visitCount !== undefined) {
+    if (durationLabel || visitCount) {
       msg += `\n`;
       if (durationLabel) msg += `\n⏱️ סה"כ זמן בממ"ד: *${durationLabel}*`;
-      if (visitCount !== undefined) msg += `\n📊 מספר כניסות לממ"ד מאז שהצטרפתי לקבוצה: *${visitCount}*`;
+      if (visitCount) msg += `\n📊 מספר כניסות לממ"ד מאז שהצטרפתי לקבוצה: *${visitCount}*`;
     }
     return msg;
   } else {
     let msg = `🚪 *Event Ended*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `You may leave the safe room. Stay safe 💙`;
-    if (durationLabel || visitCount !== undefined) {
+    if (durationLabel || visitCount) {
       msg += `\n`;
       if (durationLabel) msg += `\n⏱️ Time in shelter: *${durationLabel}*`;
-      if (visitCount !== undefined) msg += `\n📊 Shelter visits since I joined this group: *${visitCount}*`;
+      if (visitCount) msg += `\n📊 Shelter visits since I joined this group: *${visitCount}*`;
     }
     return msg;
   }
