@@ -64,7 +64,6 @@ describe('SYSTEM_PROMPT — bot capabilities section (added in this PR)', () => 
   });
 
   it('lists the engagement feature commands', () => {
-    expect(SYSTEM_PROMPT).toContain('!streak');
     expect(SYSTEM_PROMPT).toContain('!activities');
   });
 

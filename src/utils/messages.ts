@@ -104,62 +104,6 @@ export function getRandomActivity(): string {
 }
 
 // =====================
-// Streak Messages
-// =====================
-
-/** Format streak duration in Hebrew or English */
-function formatStreakDuration(hours: number, language: 'he' | 'en'): string {
-  if (language === 'he') {
-    if (hours < 24) return `${hours} שעות`;
-    if (hours < 48) return 'יום שלם';
-    if (hours < 168) return `${Math.round(hours / 24)} ימים`;
-    return 'שבוע שלם';
-  } else {
-    if (hours < 24) return `${hours} hours`;
-    if (hours < 48) return 'a full day';
-    if (hours < 168) return `${Math.round(hours / 24)} days`;
-    return 'a full week';
-  }
-}
-
-/** Casual Hebrew/English comments per milestone */
-const STREAK_COMMENTS: Record<number, { he: string; en: string }> = {
-  6:   { he: 'נושמים רגע ☀️', en: 'Taking a breath ☀️' },
-  12:  { he: 'חצי יום של שקט — נהנים ממנו 😎', en: 'Half a day of quiet — enjoying it 😎' },
-  24:  { he: 'יום שלם ללא אזעקות. ממשיכים כך 💙', en: 'A full day without alerts. Let\'s keep it 💙' },
-  48:  { he: 'יומיים! כבר אפשר להירגע קצת 😌', en: 'Two days! Starting to relax 😌' },
-  72:  { he: 'שלושה ימים. נראה טוב מאוד 💪', en: 'Three days. Looking really good 💪' },
-  168: { he: 'שבוע שלם! זה ממש מרשים 🌟', en: 'A whole week! That\'s seriously impressive 🌟' },
-};
-
-/**
- * Build a streak milestone announcement message.
- * @param hours - Which milestone (6, 12, 24, 48, 72, or 168)
- * @param isRecord - Whether this beats the group's previous record
- * @param language - Message language
- */
-export function buildStreakMilestoneMessage(
-  hours: number,
-  isRecord: boolean,
-  language: 'he' | 'en'
-): string {
-  const duration = formatStreakDuration(hours, language);
-  const comment = STREAK_COMMENTS[hours] ?? { he: 'רגוע פה 🕊️', en: 'Quiet here 🕊️' };
-
-  if (language === 'he') {
-    if (isRecord) {
-      return `🏆 *שיא חדש!*\n\nכבר *${duration}* ללא אזעקות — הכי ארוך שהיה! ממשיכים לשמור 🤞\n\n_כיבוי: !streak off_`;
-    }
-    return `🕊️ *${duration} ללא אזעקות*\n\n${comment.he}\n\n_כיבוי: !streak off_`;
-  } else {
-    if (isRecord) {
-      return `🏆 *New record!*\n\n*${duration}* without alerts — personal best! Keep it going 🤞\n\n_disable: !streak off_`;
-    }
-    return `🕊️ *${duration} without alerts*\n\n${comment.en}\n\n_disable: !streak off_`;
-  }
-}
-
-// =====================
 // Alert Type Display Names
 // =====================
 
@@ -243,28 +187,6 @@ export function buildActivityMessage(language: 'he' | 'en'): string {
 }
 
 /**
- * Build a wrap-up message sent after shelter fully clears,
- * summarising how long the group was in shelter.
- */
-export function buildShelterWrapUpMessage(durationMs: number, language: 'he' | 'en'): string {
-  const minutes = Math.round(durationMs / 60_000);
-
-  if (language === 'he') {
-    const label =
-      minutes < 1 ? 'פחות מדקה' :
-      minutes === 1 ? 'כדקה' :
-      `כ-${minutes} דקות`;
-    return `⏱️ *${label} בממ"ד* — כולם בחוץ? 🤞`;
-  } else {
-    const label =
-      minutes < 1 ? 'under a minute' :
-      minutes === 1 ? 'about 1 minute' :
-      `about ${minutes} minutes`;
-    return `⏱️ *${label} in the shelter* — everyone out? 🤞`;
-  }
-}
-
-/**
  * Build a newsFlash message - heads-up that an alert may come soon.
  */
 export function buildNewsFlashMessage(
@@ -288,22 +210,45 @@ export function buildNewsFlashMessage(
 
 /**
  * Build the "safe to leave shelter" message for an end alert.
+ * If durationMs is provided, the shelter time is included in the message.
  */
 export function buildEndAlertMessage(
   clearedCities: string[],
-  language: 'he' | 'en'
+  language: 'he' | 'en',
+  durationMs?: number,
+  visitCount?: number
 ): string {
   const cities = clearedCities.join(', ');
+
+  let durationLabel = '';
+  if (durationMs !== undefined) {
+    const minutes = Math.round(durationMs / 60_000);
+    if (language === 'he') {
+      durationLabel = minutes < 1 ? 'פחות מדקה' : minutes === 1 ? 'כדקה' : `כ-${minutes} דקות`;
+    } else {
+      durationLabel = minutes < 1 ? 'under a minute' : minutes === 1 ? 'about 1 minute' : `about ${minutes} minutes`;
+    }
+  }
 
   if (language === 'he') {
     let msg = `🚪 *האירוע הסתיים*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `ניתן לצאת מהמרחב המוגן. שמרו על עצמכם 💙`;
+    if (durationLabel || visitCount) {
+      msg += `\n`;
+      if (durationLabel) msg += `\n⏱️ סה"כ זמן בממ"ד: *${durationLabel}*`;
+      if (visitCount) msg += `\n📊 מספר כניסות לממ"ד מאז שהצטרפתי לקבוצה: *${visitCount}*`;
+    }
     return msg;
   } else {
     let msg = `🚪 *Event Ended*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `You may leave the safe room. Stay safe 💙`;
+    if (durationLabel || visitCount) {
+      msg += `\n`;
+      if (durationLabel) msg += `\n⏱️ Time in shelter: *${durationLabel}*`;
+      if (visitCount) msg += `\n📊 Shelter visits since I joined this group: *${visitCount}*`;
+    }
     return msg;
   }
 }
@@ -412,7 +357,6 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!lang* he/en - לשנות שפה
 *!status* - מה המצב שלי
 *!test* - בדיקת חיים
-*!streak* on/off - מד שעות שקט בין אזעקות ⏱️
 *!activities* on/off - אתגרים קטנים בזמן האזעקה 🎮
 *!ask* שאלה - לשאול את ה-AI כל שאלה 🤖
 *אקו* שאלה - אותו דבר, רק יותר טבעי 😎
@@ -429,7 +373,6 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!lang* he/en - Change language
 *!status* - How I'm doing
 *!test* - Am I alive?
-*!streak* on/off - Silence streak milestones ⏱️
 *!activities* on/off - Mini shelter challenges 🎮
 *!ask* question - Ask the AI anything 🤖
 *echo* question - Same thing, just more natural 😎
