@@ -43,6 +43,7 @@ export async function init(): Promise<void> {
       language: (row.language as 'he' | 'en') || 'he',
       enabled: row.enabled,
       settings: (row.settings as GroupSettings) || {},
+      createdAt: row.created_at,
     });
   }
 

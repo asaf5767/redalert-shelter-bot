@@ -237,7 +237,7 @@ export function buildEndAlertMessage(
     if (durationLabel || visitCount !== undefined) {
       msg += `\n`;
       if (durationLabel) msg += `\n⏱️ סה"כ זמן בממ"ד: *${durationLabel}*`;
-      if (visitCount !== undefined) msg += `\n📊 סה"כ ביקורים בממ"ד מאז 28/2: *${visitCount}*`;
+      if (visitCount !== undefined) msg += `\n📊 מספר כניסות לממ"ד מאז שהצטרפתי לקבוצה: *${visitCount}*`;
     }
     return msg;
   } else {
@@ -247,7 +247,7 @@ export function buildEndAlertMessage(
     if (durationLabel || visitCount !== undefined) {
       msg += `\n`;
       if (durationLabel) msg += `\n⏱️ Time in shelter: *${durationLabel}*`;
-      if (visitCount !== undefined) msg += `\n📊 Total shelter visits since 28/2: *${visitCount}*`;
+      if (visitCount !== undefined) msg += `\n📊 Shelter visits since I joined this group: *${visitCount}*`;
     }
     return msg;
   }

@@ -325,7 +325,8 @@ export async function handleEndAlert(alert: RedAlertEvent): Promise<void> {
         shelterStartTimes.delete(groupId);
       }
       // +1 to include the current visit (logged after we send the message)
-      visitCount = (await getShelterVisitCount(groupId, '2026-02-28')) + 1;
+      const since = config?.createdAt ?? '2000-01-01';
+      visitCount = (await getShelterVisitCount(groupId, since)) + 1;
     }
 
     // Send the "safe to leave" message, including shelter duration when available

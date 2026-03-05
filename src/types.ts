@@ -60,6 +60,8 @@ export interface GroupConfig {
   enabled: boolean;
   /** Optional feature toggles and streak state */
   settings: GroupSettings;
+  /** ISO timestamp of when the bot first joined/was approved in this group */
+  createdAt?: string;
 }
 
 // =====================
