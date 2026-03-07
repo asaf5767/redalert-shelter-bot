@@ -56,6 +56,9 @@ export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 // Bot Config
 // =====================
 
+/** Whether Echo should occasionally jump into group conversations unprompted */
+export const ECHO_ACTIVE_MODE = process.env.ECHO_ACTIVE_MODE === 'true';
+
 /** Bot's phone number (without +), for identification */
 export const BOT_PHONE_NUMBER = process.env.BOT_PHONE_NUMBER || '';
 

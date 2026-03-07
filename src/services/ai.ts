@@ -211,3 +211,74 @@ export async function askAI(
 
   throw new Error('No AI provider available — set ANTHROPIC_API_KEY or GROQ_API_KEY');
 }
+
+// =====================
+// Active Response Gating (Groq-only, cheap)
+// =====================
+
+/** Possible response angles for active participation */
+export type ActiveAngle = 'joke' | 'opinion' | 'fact' | 'reaction';
+
+interface ActiveGateResult {
+  shouldRespond: boolean;
+  angle?: ActiveAngle;
+}
+
+const GATE_PROMPT = `You are a gatekeeper for Echo, a chatty Israeli WhatsApp bot.
+You see the last few messages from a group chat. Decide if Echo should jump in UNINVITED with a spontaneous remark.
+
+Say YES only if:
+- The conversation is interesting, funny, or debatable
+- Echo could add genuine value (a joke, hot take, fun fact, or reaction)
+- The topic is something a witty friend would naturally chime in on
+
+Say NO if:
+- It's a boring/logistic convo (scheduling, links, one-word replies)
+- People are having a private/sensitive moment
+- The conversation already died out
+- Someone just asked Echo directly (that's handled elsewhere)
+
+Reply ONLY in this exact format (no extra text):
+YES:angle
+or
+NO
+
+Where angle is one of: joke, opinion, fact, reaction`;
+
+/**
+ * Ask Groq whether Echo should jump into a group conversation.
+ * Returns whether to respond and a suggested angle.
+ * Uses only Groq (cheap) — never calls Claude for gating.
+ */
+export async function shouldEchoJumpIn(
+  recentMessages: string[]
+): Promise<ActiveGateResult> {
+  if (!GROQ_API_KEY) {
+    return { shouldRespond: false };
+  }
+
+  const chatSnippet = recentMessages.join('\n');
+  const messages = [
+    { role: 'system', content: GATE_PROMPT },
+    { role: 'user', content: chatSnippet },
+  ];
+
+  try {
+    const raw = await callGroqModel(messages, GROQ_FALLBACK_MODEL);
+    const trimmed = raw.trim().toUpperCase();
+
+    if (trimmed.startsWith('YES:')) {
+      const angle = trimmed.split(':')[1]?.toLowerCase().trim() as ActiveAngle;
+      const validAngles: ActiveAngle[] = ['joke', 'opinion', 'fact', 'reaction'];
+      return {
+        shouldRespond: true,
+        angle: validAngles.includes(angle) ? angle : 'reaction',
+      };
+    }
+
+    return { shouldRespond: false };
+  } catch (err) {
+    log.warn({ err }, 'Active gating call failed');
+    return { shouldRespond: false };
+  }
+}

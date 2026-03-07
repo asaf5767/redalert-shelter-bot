@@ -44,6 +44,7 @@ import { getConversationHistory, saveMessage } from '../services/supabase';
 import { createLogger } from '../utils/logger';
 import { BOT_PHONE_NUMBER } from '../config';
 import { setActivitiesEnabled } from './group-config';
+import { onGroupMessage } from './echo-active';
 
 const log = createLogger('commands');
 
@@ -86,6 +87,11 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
     const lang = config?.language || 'he';
     await handleAsk(message.chatId, body, lang, message.senderName, message.messageKey);
     return;
+  }
+
+  // Track group messages for active participation (fire-and-forget)
+  if (message.isGroup) {
+    onGroupMessage(message).catch(err => log.error({ err }, 'Active respond failed'));
   }
 
   // Only process messages that start with "!"
