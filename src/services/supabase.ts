@@ -386,16 +386,28 @@ export async function getShelterVisitCount(groupId: string, since: string): Prom
  * Compute total historical shelter time (ms) for a group by walking alert_log events.
  * Pairs "alert" → "endAlert" entries chronologically and sums durations.
  * Used once per group to bootstrap totalShelterTimeMs before incremental tracking.
+ *
+ * Guards against over-counting:
+ * 1. Excludes newsFlash events — informational, not shelter-triggering, but logged as event_type='alert'.
+ *    Without this filter, newsFlash→endAlert gaps inflate the total massively.
+ * 2. Caps individual sessions at MAX_SESSION_MS — when an endAlert log is missing (connectivity gap,
+ *    bot restart, etc.), the state machine would pair the alert with a much later endAlert,
+ *    counting hours/days of gap as shelter time.
  */
 export async function computeHistoricalShelterTime(groupId: string, since: string): Promise<number> {
   if (!supabase) return 0;
 
+  // Shelter sessions longer than this are capped (missing endAlert protection)
+  // Real shelter sessions are typically 10-15 minutes; 60 min is generous
+  const MAX_SESSION_MS = 60 * 60 * 1000; // 60 minutes
+
   try {
     const { data, error } = await supabase
       .from(ALERT_LOG_TABLE)
-      .select('event_type, created_at')
+      .select('event_type, alert_type, created_at')
       .contains('groups_notified', [groupId])
       .gte('created_at', since)
+      .neq('alert_type', 'newsFlash')
       .order('created_at', { ascending: true })
       .limit(10000);
 
@@ -406,10 +418,22 @@ export async function computeHistoricalShelterTime(groupId: string, since: strin
 
     for (const row of data) {
       const ts = new Date(row.created_at).getTime();
-      if (row.event_type === 'alert' && shelterStart === null) {
-        shelterStart = ts;
+      if (row.event_type === 'alert') {
+        if (shelterStart === null) {
+          shelterStart = ts;
+        } else {
+          // New alert while already sheltering — check if the previous session
+          // was missing its endAlert (gap too large). If so, cap and restart.
+          const elapsed = ts - shelterStart;
+          if (elapsed > MAX_SESSION_MS) {
+            totalMs += MAX_SESSION_MS;
+            shelterStart = ts;
+          }
+          // Otherwise: follow-up alert in same session, keep original start
+        }
       } else if (row.event_type === 'endAlert' && shelterStart !== null) {
-        totalMs += ts - shelterStart;
+        const duration = ts - shelterStart;
+        totalMs += Math.min(duration, MAX_SESSION_MS);
         shelterStart = null;
       }
     }

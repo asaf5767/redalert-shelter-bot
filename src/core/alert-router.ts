@@ -329,14 +329,11 @@ export async function handleEndAlert(alert: RedAlertEvent): Promise<void> {
       const since = config?.createdAt ?? '2000-01-01';
       visitCount = (await getShelterVisitCount(groupId, since)) + 1;
 
-      // Accumulate total shelter time
+      // Compute total shelter time: recompute from DB each time (accurate, not cached)
+      // The current session's endAlert hasn't been logged yet, so add durationMs manually
       if (durationMs !== undefined && config) {
-        // Bootstrap: compute historical total on first encounter
-        if (config.settings.totalShelterTimeMs === undefined) {
-          const historical = await computeHistoricalShelterTime(groupId, since);
-          config.settings.totalShelterTimeMs = historical;
-        }
-        totalShelterTimeMs = await groupConfig.addShelterTime(groupId, durationMs);
+        const historical = await computeHistoricalShelterTime(groupId, since);
+        totalShelterTimeMs = historical + durationMs;
       }
     }
 
