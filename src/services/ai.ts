@@ -213,53 +213,54 @@ export async function askAI(
 }
 
 // =====================
-// Active Response Gating (Groq-only, cheap)
+// Topic-Aware Engagement Gating (Groq-only, cheap)
 // =====================
 
-/** Possible response angles for active participation */
-export type ActiveAngle = 'joke' | 'opinion' | 'fact' | 'reaction';
+/** Possible engagement angles for active participation */
+export type EngageAngle = 'joke' | 'opinion' | 'fact' | 'reaction';
 
-interface ActiveGateResult {
-  shouldRespond: boolean;
-  angle?: ActiveAngle;
+export interface EngageGateResult {
+  shouldEngage: boolean;
+  angle?: EngageAngle;
 }
 
-const GATE_PROMPT = `You are a gatekeeper for Echo, a chatty Israeli WhatsApp bot.
-You see the last few messages from a group chat. Decide if Echo should jump in UNINVITED with a spontaneous remark.
+const ENGAGE_GATE_PROMPT = `You decide if Echo (a witty Israeli WhatsApp bot) should jump into a group conversation.
+You'll see the last few messages. Is this topic interesting enough for a friend to spontaneously join?
 
-Say YES only if:
-- The conversation is interesting, funny, or debatable
-- Echo could add genuine value (a joke, hot take, fun fact, or reaction)
-- The topic is something a witty friend would naturally chime in on
+Reply ENGAGE:angle if:
+- The conversation has a real topic — something funny, debatable, interesting, or emotional
+- A witty friend would naturally want to chime in
+- Echo could add a joke, hot take, fun fact, or genuine reaction
 
-Say NO if:
-- It's a boring/logistic convo (scheduling, links, one-word replies)
-- People are having a private/sensitive moment
-- The conversation already died out
-- Someone just asked Echo directly (that's handled elsewhere)
+Reply SKIP if:
+- It's logistics (scheduling, links, "ok", "thanks")
+- One-word replies or dead conversation
+- Private/sensitive moment
+- Someone already asked Echo directly (handled elsewhere)
+- The messages are too short or meaningless to form a real topic
 
 Reply ONLY in this exact format (no extra text):
-YES:angle
+ENGAGE:angle
 or
-NO
+SKIP
 
 Where angle is one of: joke, opinion, fact, reaction`;
 
 /**
- * Ask Groq whether Echo should jump into a group conversation.
- * Returns whether to respond and a suggested angle.
- * Uses only Groq (cheap) — never calls Claude for gating.
+ * Ask Groq whether a conversation topic is interesting enough for Echo to engage.
+ * This is the gating call for the LURKING → ENGAGED transition.
+ * Uses only Groq (cheap, ~50 tokens) — never calls Claude for gating.
  */
-export async function shouldEchoJumpIn(
+export async function shouldEchoEngage(
   recentMessages: string[]
-): Promise<ActiveGateResult> {
+): Promise<EngageGateResult> {
   if (!GROQ_API_KEY) {
-    return { shouldRespond: false };
+    return { shouldEngage: false };
   }
 
   const chatSnippet = recentMessages.join('\n');
   const messages = [
-    { role: 'system', content: GATE_PROMPT },
+    { role: 'system', content: ENGAGE_GATE_PROMPT },
     { role: 'user', content: chatSnippet },
   ];
 
@@ -267,18 +268,18 @@ export async function shouldEchoJumpIn(
     const raw = await callGroqModel(messages, GROQ_FALLBACK_MODEL);
     const trimmed = raw.trim().toUpperCase();
 
-    if (trimmed.startsWith('YES:')) {
-      const angle = trimmed.split(':')[1]?.toLowerCase().trim() as ActiveAngle;
-      const validAngles: ActiveAngle[] = ['joke', 'opinion', 'fact', 'reaction'];
+    if (trimmed.startsWith('ENGAGE:')) {
+      const angle = trimmed.split(':')[1]?.toLowerCase().trim() as EngageAngle;
+      const validAngles: EngageAngle[] = ['joke', 'opinion', 'fact', 'reaction'];
       return {
-        shouldRespond: true,
+        shouldEngage: true,
         angle: validAngles.includes(angle) ? angle : 'reaction',
       };
     }
 
-    return { shouldRespond: false };
+    return { shouldEngage: false };
   } catch (err) {
-    log.warn({ err }, 'Active gating call failed');
-    return { shouldRespond: false };
+    log.warn({ err }, 'Engage gating call failed');
+    return { shouldEngage: false };
   }
 }

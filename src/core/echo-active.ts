@@ -1,19 +1,20 @@
 /**
- * Echo Active Participation — makes Echo occasionally jump into group conversations unprompted.
+ * Echo Active Participation — topic-aware engagement system.
  *
- * Flow:
- * 1. Every non-trigger group message increments a per-group counter
- * 2. After 5 messages, probability check starts (15% base, +10% per extra message)
- * 3. If probability hits, Groq gating decides if the conversation is worth joining
- * 4. If Groq says yes, full AI generates a response with the suggested angle
- * 5. 15-minute cooldown between unprompted responses per group
+ * Instead of counter+probability, Echo behaves like a real group member:
+ * notices interesting topics, jumps in, stays engaged for a bit, then goes quiet.
+ *
+ * State machine per group:
+ *   LURKING → (3 msgs accumulated, Groq says INTERESTING) → ENGAGED
+ *   ENGAGED → (window expires OR max follow-ups OR topic dies) → COOLDOWN
+ *   COOLDOWN → (10 min passes) → LURKING
  *
  * Controlled by ECHO_ACTIVE_MODE env var (default: false).
  */
 
 import { IncomingMessage } from '../types';
 import { ECHO_ACTIVE_MODE, BOT_PHONE_NUMBER } from '../config';
-import { shouldEchoJumpIn, askAI, isAIEnabled } from '../services/ai';
+import { shouldEchoEngage, askAI, isAIEnabled } from '../services/ai';
 import { getConversationHistory, saveMessage } from '../services/supabase';
 import { sendGroupMessage, getBotJid } from '../services/whatsapp';
 import { getGroupConfig } from './group-config';
@@ -25,45 +26,72 @@ const log = createLogger('echo-active');
 // Constants
 // =====================
 
-/** Minimum messages before Echo considers jumping in */
-const MESSAGE_THRESHOLD = 5;
+/** Messages to accumulate before asking Groq if the topic is interesting */
+const LURK_BUFFER_SIZE = 3;
 
-/** Base probability at threshold (15%) */
-const BASE_PROBABILITY = 0.15;
+/** Max engagement window from first response (5 minutes) */
+const ENGAGEMENT_WINDOW_MS = 5 * 60 * 1000;
 
-/** Probability increase per message beyond threshold (10%) */
-const PROBABILITY_INCREMENT = 0.10;
+/** If no messages arrive for this long during engagement, conversation died (2 minutes) */
+const CONVERSATION_DIED_MS = 2 * 60 * 1000;
 
-/** Maximum probability cap (never 100% — always some randomness) */
-const MAX_PROBABILITY = 0.85;
+/** Probability of a follow-up response during ENGAGED state (40%) */
+const FOLLOW_UP_CHANCE = 0.40;
 
-/** Cooldown between unprompted responses per group (15 minutes) */
-const COOLDOWN_MS = 15 * 60 * 1000;
+/** Max follow-up responses per engagement (so max 4 total: 1 initial + 3 follow-ups) */
+const MAX_FOLLOW_UPS = 3;
 
-/** Max recent messages to send to the gating prompt */
-const GATE_CONTEXT_SIZE = 5;
+/** Cooldown between engagements per group (10 minutes) */
+const COOLDOWN_MS = 10 * 60 * 1000;
+
+/** Max recent messages to keep in buffer for Groq gating context */
+const BUFFER_CONTEXT_SIZE = 8;
 
 // =====================
-// Per-group State
+// State Types
 // =====================
 
-interface GroupActiveState {
-  /** Messages since last active response (or since bot started tracking) */
-  messageCount: number;
-  /** Timestamp of last unprompted response */
-  lastActiveResponseAt: number;
-  /** Recent messages (sender: body) for gating context */
-  recentMessages: string[];
-  /** Lock to prevent concurrent active responses */
+type GroupPhase = 'LURKING' | 'ENGAGED' | 'COOLDOWN';
+
+interface GroupEngagementState {
+  phase: GroupPhase;
+
+  /** Message buffer for Groq gating (sender: body lines) */
+  messageBuffer: string[];
+
+  /** Lock to prevent concurrent AI calls */
   responding: boolean;
+
+  // --- ENGAGED state fields ---
+  /** When the engagement window started (first response sent) */
+  engagedSince: number;
+  /** Timestamp of the last message received in the group */
+  lastMessageAt: number;
+  /** How many follow-ups Echo has sent in this engagement */
+  followUpCount: number;
+  /** The topic/angle Echo is currently engaged on */
+  currentAngle: string;
+
+  // --- COOLDOWN state fields ---
+  /** When cooldown started */
+  cooldownSince: number;
 }
 
-const groupStates = new Map<string, GroupActiveState>();
+const groupStates = new Map<string, GroupEngagementState>();
 
-function getOrCreateState(groupId: string): GroupActiveState {
+function getOrCreateState(groupId: string): GroupEngagementState {
   let state = groupStates.get(groupId);
   if (!state) {
-    state = { messageCount: 0, lastActiveResponseAt: 0, recentMessages: [], responding: false };
+    state = {
+      phase: 'LURKING',
+      messageBuffer: [],
+      responding: false,
+      engagedSince: 0,
+      lastMessageAt: 0,
+      followUpCount: 0,
+      currentAngle: '',
+      cooldownSince: 0,
+    };
     groupStates.set(groupId, state);
   }
   return state;
@@ -75,107 +103,209 @@ function getOrCreateState(groupId: string): GroupActiveState {
 
 /**
  * Called for every incoming group message (from command-handler).
- * Tracks the message and may trigger an active response.
+ * Tracks the message and may trigger engagement based on the state machine.
  * This is fire-and-forget — errors are logged but don't propagate.
  */
 export async function onGroupMessage(message: IncomingMessage): Promise<void> {
   if (!ECHO_ACTIVE_MODE || !message.isGroup || !isAIEnabled()) return;
 
   const state = getOrCreateState(message.chatId);
+  const now = Date.now();
 
-  // Track the message
-  state.messageCount++;
+  // Always track the message in the buffer (useful for context in all phases)
   const senderLabel = message.senderName || 'משתמש';
-  state.recentMessages.push(`${senderLabel}: ${message.body}`);
-
-  // Keep only the last N messages for context
-  if (state.recentMessages.length > GATE_CONTEXT_SIZE) {
-    state.recentMessages = state.recentMessages.slice(-GATE_CONTEXT_SIZE);
+  state.messageBuffer.push(`${senderLabel}: ${message.body}`);
+  if (state.messageBuffer.length > BUFFER_CONTEXT_SIZE) {
+    state.messageBuffer = state.messageBuffer.slice(-BUFFER_CONTEXT_SIZE);
   }
+  state.lastMessageAt = now;
 
-  // Check if we should attempt an active response
-  if (!shouldAttempt(message.chatId, state)) return;
+  // Phase-based handling
+  switch (state.phase) {
+    case 'LURKING':
+      await handleLurking(message.chatId, state);
+      break;
 
-  // Roll the dice (capped at MAX_PROBABILITY)
-  const messagesOverThreshold = state.messageCount - MESSAGE_THRESHOLD;
-  const probability = Math.min(
-    BASE_PROBABILITY + messagesOverThreshold * PROBABILITY_INCREMENT,
-    MAX_PROBABILITY
-  );
-  const roll = Math.random();
+    case 'ENGAGED':
+      await handleEngaged(message.chatId, state, now);
+      break;
 
-  log.debug(
-    { groupId: message.chatId, messageCount: state.messageCount, probability, roll },
-    'Active response probability check'
-  );
+    case 'COOLDOWN':
+      handleCooldown(state, now);
+      break;
+  }
+}
 
-  if (roll > probability) return;
+// =====================
+// Phase Handlers
+// =====================
 
-  // Acquire the responding lock to prevent concurrent active responses
+/**
+ * LURKING: accumulate messages, every LURK_BUFFER_SIZE messages ask Groq if the topic is interesting.
+ */
+async function handleLurking(groupId: string, state: GroupEngagementState): Promise<void> {
+  // Only evaluate every LURK_BUFFER_SIZE messages
+  if (state.messageBuffer.length < LURK_BUFFER_SIZE) return;
+
+  // Don't stack concurrent gating calls
   if (state.responding) return;
   state.responding = true;
 
-  // Probability hit! Ask Groq if we should actually respond
   log.info(
-    { groupId: message.chatId, messageCount: state.messageCount },
-    'Probability hit — asking Groq gate'
+    { groupId, bufferSize: state.messageBuffer.length },
+    'Lurking — asking Groq if topic is interesting'
   );
 
   try {
-    const gateResult = await shouldEchoJumpIn(state.recentMessages);
+    const gateResult = await shouldEchoEngage(state.messageBuffer);
 
-    if (!gateResult.shouldRespond) {
-      log.info({ groupId: message.chatId }, 'Groq gate said NO — skipping');
-      // Reset counter to avoid hot loop of Groq calls on every subsequent message
-      state.messageCount = 0;
-      state.recentMessages = [];
+    if (!gateResult.shouldEngage) {
+      log.info({ groupId }, 'Groq says SKIP — clearing buffer, keep lurking');
+      state.messageBuffer = [];
       return;
     }
 
     log.info(
-      { groupId: message.chatId, angle: gateResult.angle },
-      'Groq gate said YES — generating active response'
+      { groupId, angle: gateResult.angle },
+      'Groq says ENGAGE — generating initial response'
     );
 
-    await generateAndSendActiveResponse(message.chatId, gateResult.angle || 'reaction');
+    const angle = gateResult.angle || 'reaction';
+    await generateAndSendActiveResponse(groupId, angle, false);
 
-    // Reset state after responding
-    state.messageCount = 0;
-    state.lastActiveResponseAt = Date.now();
-    state.recentMessages = [];
+    // Transition → ENGAGED
+    state.phase = 'ENGAGED';
+    state.engagedSince = Date.now();
+    state.followUpCount = 0;
+    state.currentAngle = angle;
+    state.messageBuffer = [];
+
+    log.info({ groupId, angle }, 'Transitioned to ENGAGED');
   } catch (err) {
-    log.error({ err, groupId: message.chatId }, 'Active response failed');
+    log.error({ err, groupId }, 'Lurking evaluation failed');
   } finally {
     state.responding = false;
   }
 }
 
-// =====================
-// Internal Helpers
-// =====================
-
 /**
- * Check preconditions before attempting an active response.
+ * ENGAGED: Echo is in the conversation. May follow up on new messages.
+ * Transitions to COOLDOWN when window expires, max follow-ups reached, or conversation dies.
  */
-function shouldAttempt(groupId: string, state: GroupActiveState): boolean {
-  // Not enough messages yet
-  if (state.messageCount < MESSAGE_THRESHOLD) return false;
+async function handleEngaged(
+  groupId: string,
+  state: GroupEngagementState,
+  now: number
+): Promise<void> {
+  // Check if engagement should end
+  const windowExpired = (now - state.engagedSince) > ENGAGEMENT_WINDOW_MS;
+  const maxFollowUpsReached = state.followUpCount >= MAX_FOLLOW_UPS;
 
-  // Cooldown hasn't expired
-  if (Date.now() - state.lastActiveResponseAt < COOLDOWN_MS) {
-    log.debug({ groupId }, 'Active response on cooldown');
-    return false;
+  if (windowExpired || maxFollowUpsReached) {
+    transitionToCooldown(groupId, state, windowExpired ? 'window expired' : 'max follow-ups');
+    return;
   }
 
-  return true;
+  // Don't stack concurrent responses
+  if (state.responding) return;
+
+  // Roll the dice for a follow-up (40% chance)
+  const roll = Math.random();
+  if (roll > FOLLOW_UP_CHANCE) {
+    log.debug({ groupId, roll }, 'Engaged — skipped follow-up (dice roll)');
+    return;
+  }
+
+  state.responding = true;
+
+  try {
+    log.info(
+      { groupId, followUpCount: state.followUpCount + 1, maxFollowUps: MAX_FOLLOW_UPS },
+      'Engaged — generating follow-up response'
+    );
+
+    await generateAndSendActiveResponse(groupId, state.currentAngle, true);
+    state.followUpCount++;
+
+    // Check again after sending — if we just hit max, transition
+    if (state.followUpCount >= MAX_FOLLOW_UPS) {
+      transitionToCooldown(groupId, state, 'max follow-ups after send');
+    }
+  } catch (err) {
+    log.error({ err, groupId }, 'Engaged follow-up failed');
+  } finally {
+    state.responding = false;
+  }
 }
 
 /**
+ * COOLDOWN: check if enough time has passed to return to lurking.
+ * Messages are silently accumulated for context.
+ */
+function handleCooldown(state: GroupEngagementState, now: number): void {
+  if ((now - state.cooldownSince) >= COOLDOWN_MS) {
+    state.phase = 'LURKING';
+    state.messageBuffer = [];
+    log.debug('Cooldown expired — back to LURKING');
+  }
+}
+
+/**
+ * Transition from ENGAGED to COOLDOWN.
+ */
+function transitionToCooldown(
+  groupId: string,
+  state: GroupEngagementState,
+  reason: string
+): void {
+  state.phase = 'COOLDOWN';
+  state.cooldownSince = Date.now();
+  state.followUpCount = 0;
+  state.currentAngle = '';
+  state.messageBuffer = [];
+
+  log.info({ groupId, reason }, 'Transitioned to COOLDOWN');
+}
+
+// =====================
+// Conversation Death Check (called on a timer or lazily)
+// =====================
+
+/**
+ * Check all engaged groups for conversation death (no messages for CONVERSATION_DIED_MS).
+ * Called periodically or can be checked lazily.
+ */
+export function checkConversationDeath(): void {
+  const now = Date.now();
+  for (const [groupId, state] of groupStates.entries()) {
+    if (
+      state.phase === 'ENGAGED' &&
+      state.lastMessageAt > 0 &&
+      (now - state.lastMessageAt) > CONVERSATION_DIED_MS
+    ) {
+      transitionToCooldown(groupId, state, 'conversation died (no messages)');
+    }
+  }
+}
+
+// Start a periodic check for conversation death (every 30 seconds)
+setInterval(checkConversationDeath, 30 * 1000);
+
+// =====================
+// Response Generation
+// =====================
+
+/**
  * Generate a full AI response and send it to the group.
+ *
+ * @param groupId - WhatsApp group JID
+ * @param angle - The engagement angle (joke, opinion, fact, reaction)
+ * @param isFollowUp - Whether this is a follow-up (changes the prompt tone)
  */
 async function generateAndSendActiveResponse(
   groupId: string,
-  angle: string
+  angle: string,
+  isFollowUp: boolean
 ): Promise<void> {
   const config = getGroupConfig(groupId);
   const lang = config?.language || 'he';
@@ -189,24 +319,33 @@ async function generateAndSendActiveResponse(
   // Fetch recent conversation history from DB
   const history = await getConversationHistory(groupId, botNumbers, 10);
 
-  // Build the prompt with the suggested angle
-  const anglePrompts: Record<string, string> = {
-    joke: lang === 'he'
-      ? 'תקפוץ לשיחה עם בדיחה או תגובה מצחיקה שקשורה למה שדיברו עליו.'
-      : 'Jump into the conversation with a joke or funny remark related to what they discussed.',
-    opinion: lang === 'he'
-      ? 'תקפוץ לשיחה עם דעה חזקה (אפשר גם שנויה במחלוקת) על מה שדיברו עליו.'
-      : 'Jump into the conversation with a strong (even controversial) opinion on what they discussed.',
-    fact: lang === 'he'
-      ? 'תקפוץ לשיחה עם עובדה מעניינת או פרט מפתיע שקשור למה שדיברו עליו.'
-      : 'Jump into the conversation with an interesting fact or surprising detail related to what they discussed.',
-    reaction: lang === 'he'
-      ? 'תקפוץ לשיחה עם תגובה טבעית וספונטנית למה שדיברו עליו, כאילו אתה חבר שפשוט לא יכל להתאפק.'
-      : 'Jump into the conversation with a natural, spontaneous reaction, like a friend who just couldn\'t hold back.',
-  };
+  let prompt: string;
 
-  const angleInstruction = anglePrompts[angle] || anglePrompts.reaction;
-  const prompt = `${angleInstruction}\nאתה קופץ לשיחה בעצמך — אף אחד לא שאל אותך. תהיה טבעי ולא תגיד "ראיתי שדיברתם על..." — פשוט תכנס ישר.`;
+  if (isFollowUp) {
+    // Follow-up: Echo is already in the conversation, respond naturally
+    prompt = lang === 'he'
+      ? 'אתה כבר בתוך השיחה הזו. תגיב בצורה טבעית להודעה האחרונה — כמו חבר שכבר נמצא בשיחה ופשוט ממשיך. קצר ולעניין.'
+      : 'You\'re already part of this conversation. Respond naturally to the latest message — like a friend who\'s already chatting. Keep it short.';
+  } else {
+    // Initial jump-in: use angle-specific prompts
+    const anglePrompts: Record<string, string> = {
+      joke: lang === 'he'
+        ? 'תקפוץ לשיחה עם בדיחה או תגובה מצחיקה שקשורה למה שדיברו עליו.'
+        : 'Jump into the conversation with a joke or funny remark related to what they discussed.',
+      opinion: lang === 'he'
+        ? 'תקפוץ לשיחה עם דעה חזקה (אפשר גם שנויה במחלוקת) על מה שדיברו עליו.'
+        : 'Jump into the conversation with a strong (even controversial) opinion on what they discussed.',
+      fact: lang === 'he'
+        ? 'תקפוץ לשיחה עם עובדה מעניינת או פרט מפתיע שקשור למה שדיברו עליו.'
+        : 'Jump into the conversation with an interesting fact or surprising detail related to what they discussed.',
+      reaction: lang === 'he'
+        ? 'תקפוץ לשיחה עם תגובה טבעית וספונטנית למה שדיברו עליו, כאילו אתה חבר שפשוט לא יכל להתאפק.'
+        : 'Jump into the conversation with a natural, spontaneous reaction, like a friend who just couldn\'t hold back.',
+    };
+
+    const angleInstruction = anglePrompts[angle] || anglePrompts.reaction;
+    prompt = `${angleInstruction}\nאתה קופץ לשיחה בעצמך — אף אחד לא שאל אותך. תהיה טבעי ולא תגיד "ראיתי שדיברתם על..." — פשוט תכנס ישר.`;
+  }
 
   const response = await askAI(prompt, history);
   const fullResponse = `🤖 ${response}`;
@@ -229,5 +368,5 @@ async function generateAndSendActiveResponse(
     is_content: true,
   }).catch(() => {}); // Fire and forget
 
-  log.info({ groupId, angle }, 'Active response sent successfully');
+  log.info({ groupId, angle, isFollowUp }, 'Active response sent successfully');
 }
