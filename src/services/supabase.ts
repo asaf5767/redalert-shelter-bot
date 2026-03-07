@@ -382,6 +382,44 @@ export async function getShelterVisitCount(groupId: string, since: string): Prom
   }
 }
 
+/**
+ * Compute total historical shelter time (ms) for a group by walking alert_log events.
+ * Pairs "alert" → "endAlert" entries chronologically and sums durations.
+ * Used once per group to bootstrap totalShelterTimeMs before incremental tracking.
+ */
+export async function computeHistoricalShelterTime(groupId: string, since: string): Promise<number> {
+  if (!supabase) return 0;
+
+  try {
+    const { data, error } = await supabase
+      .from(ALERT_LOG_TABLE)
+      .select('event_type, created_at')
+      .contains('groups_notified', [groupId])
+      .gte('created_at', since)
+      .order('created_at', { ascending: true })
+      .limit(10000);
+
+    if (error || !data || data.length === 0) return 0;
+
+    let totalMs = 0;
+    let shelterStart: number | null = null;
+
+    for (const row of data) {
+      const ts = new Date(row.created_at).getTime();
+      if (row.event_type === 'alert' && shelterStart === null) {
+        shelterStart = ts;
+      } else if (row.event_type === 'endAlert' && shelterStart !== null) {
+        totalMs += ts - shelterStart;
+        shelterStart = null;
+      }
+    }
+
+    return totalMs;
+  } catch {
+    return 0;
+  }
+}
+
 // =====================
 // Message History
 // =====================

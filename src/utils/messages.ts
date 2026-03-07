@@ -216,7 +216,8 @@ export function buildEndAlertMessage(
   clearedCities: string[],
   language: 'he' | 'en',
   durationMs?: number,
-  visitCount?: number
+  visitCount?: number,
+  totalShelterTimeMs?: number
 ): string {
   const cities = clearedCities.join(', ');
 
@@ -230,26 +231,54 @@ export function buildEndAlertMessage(
     }
   }
 
+  const totalLabel = formatTotalShelterTime(totalShelterTimeMs, language);
+
   if (language === 'he') {
     let msg = `🚪 *האירוע הסתיים*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `ניתן לצאת מהמרחב המוגן. שמרו על עצמכם 💙`;
-    if (durationLabel || visitCount) {
+    if (durationLabel || visitCount || totalLabel) {
       msg += `\n`;
       if (durationLabel) msg += `\n⏱️ סה"כ זמן בממ"ד: *${durationLabel}*`;
       if (visitCount) msg += `\n📊 מספר כניסות לממ"ד מאז שהצטרפתי לקבוצה: *${visitCount}*`;
+      if (totalLabel) msg += `\n⏱️ סה"כ זמן בממ"ד מאז שהצטרפתי: *${totalLabel}*`;
     }
     return msg;
   } else {
     let msg = `🚪 *Event Ended*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `You may leave the safe room. Stay safe 💙`;
-    if (durationLabel || visitCount) {
+    if (durationLabel || visitCount || totalLabel) {
       msg += `\n`;
       if (durationLabel) msg += `\n⏱️ Time in shelter: *${durationLabel}*`;
       if (visitCount) msg += `\n📊 Shelter visits since I joined this group: *${visitCount}*`;
+      if (totalLabel) msg += `\n⏱️ Total shelter time since I joined: *${totalLabel}*`;
     }
     return msg;
+  }
+}
+
+/**
+ * Format total cumulative shelter time for display.
+ * Returns empty string if undefined or zero.
+ */
+export function formatTotalShelterTime(totalMs: number | undefined, language: 'he' | 'en'): string {
+  if (totalMs === undefined || totalMs <= 0) return '';
+
+  const totalMinutes = Math.round(totalMs / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+
+  if (language === 'he') {
+    if (hours > 0) {
+      return mins > 0 ? `${hours} שעות ו-${mins} דקות` : `${hours} שעות`;
+    }
+    return totalMinutes < 1 ? 'פחות מדקה' : `${totalMinutes} דקות`;
+  } else {
+    if (hours > 0) {
+      return mins > 0 ? `${hours} hours and ${mins} minutes` : `${hours} hours`;
+    }
+    return totalMinutes < 1 ? 'under a minute' : `${totalMinutes} minutes`;
   }
 }
 

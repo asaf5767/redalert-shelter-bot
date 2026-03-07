@@ -44,6 +44,8 @@ export type AlertType =
 export interface GroupSettings {
   /** Whether to append a shelter activity to alert messages */
   activitiesEnabled?: boolean;
+  /** Total cumulative milliseconds spent in shelter since bot joined */
+  totalShelterTimeMs?: number;
 }
 
 /** Configuration for a single WhatsApp group's alert monitoring */
