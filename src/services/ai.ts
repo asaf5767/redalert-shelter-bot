@@ -211,3 +211,75 @@ export async function askAI(
 
   throw new Error('No AI provider available — set ANTHROPIC_API_KEY or GROQ_API_KEY');
 }
+
+// =====================
+// Topic-Aware Engagement Gating (Groq-only, cheap)
+// =====================
+
+/** Possible engagement angles for active participation */
+export type EngageAngle = 'joke' | 'opinion' | 'fact' | 'reaction';
+
+export interface EngageGateResult {
+  shouldEngage: boolean;
+  angle?: EngageAngle;
+}
+
+const ENGAGE_GATE_PROMPT = `You decide if Echo (a witty Israeli WhatsApp bot) should jump into a group conversation.
+You'll see the last few messages. Is this topic interesting enough for a friend to spontaneously join?
+
+Reply ENGAGE:angle if:
+- The conversation has a real topic — something funny, debatable, interesting, or emotional
+- A witty friend would naturally want to chime in
+- Echo could add a joke, hot take, fun fact, or genuine reaction
+
+Reply SKIP if:
+- It's logistics (scheduling, links, "ok", "thanks")
+- One-word replies or dead conversation
+- Private/sensitive moment
+- Someone already asked Echo directly (handled elsewhere)
+- The messages are too short or meaningless to form a real topic
+
+Reply ONLY in this exact format (no extra text):
+ENGAGE:angle
+or
+SKIP
+
+Where angle is one of: joke, opinion, fact, reaction`;
+
+/**
+ * Ask Groq whether a conversation topic is interesting enough for Echo to engage.
+ * This is the gating call for the LURKING → ENGAGED transition.
+ * Uses only Groq (cheap, ~50 tokens) — never calls Claude for gating.
+ */
+export async function shouldEchoEngage(
+  recentMessages: string[]
+): Promise<EngageGateResult> {
+  if (!GROQ_API_KEY) {
+    return { shouldEngage: false };
+  }
+
+  const chatSnippet = recentMessages.join('\n');
+  const messages = [
+    { role: 'system', content: ENGAGE_GATE_PROMPT },
+    { role: 'user', content: chatSnippet },
+  ];
+
+  try {
+    const raw = await callGroqModel(messages, GROQ_FALLBACK_MODEL);
+    const trimmed = raw.trim().toUpperCase();
+
+    if (trimmed.startsWith('ENGAGE:')) {
+      const angle = trimmed.split(':')[1]?.toLowerCase().trim() as EngageAngle;
+      const validAngles: EngageAngle[] = ['joke', 'opinion', 'fact', 'reaction'];
+      return {
+        shouldEngage: true,
+        angle: validAngles.includes(angle) ? angle : 'reaction',
+      };
+    }
+
+    return { shouldEngage: false };
+  } catch (err) {
+    log.warn({ err }, 'Engage gating call failed');
+    return { shouldEngage: false };
+  }
+}
