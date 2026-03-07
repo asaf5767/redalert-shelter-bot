@@ -307,6 +307,26 @@ export async function setActivitiesEnabled(groupId: string, enabled: boolean): P
 }
 
 // =====================
+// Shelter Time Tracking
+// =====================
+
+/**
+ * Add shelter duration to a group's cumulative total and persist.
+ * Returns the updated total (ms).
+ */
+export async function addShelterTime(groupId: string, durationMs: number): Promise<number> {
+  const config = configs.get(groupId);
+  if (!config) return 0;
+
+  const previous = config.settings.totalShelterTimeMs ?? 0;
+  config.settings.totalShelterTimeMs = previous + durationMs;
+  configs.set(groupId, config);
+  await save(config);
+  log.info({ groupId, durationMs, total: config.settings.totalShelterTimeMs }, 'Shelter time updated');
+  return config.settings.totalShelterTimeMs;
+}
+
+// =====================
 // Helpers
 // =====================
 
