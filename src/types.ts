@@ -42,16 +42,10 @@ export type AlertType =
 
 /** Per-group optional feature settings, stored in the settings JSONB column */
 export interface GroupSettings {
-  /** Whether to announce streak milestones (hours of silence since last alert) */
-  streakEnabled?: boolean;
-  /** Timestamp (ms) of the last real alert that fired for this group */
-  lastAlertAt?: number | null;
-  /** Longest streak of silence ever recorded for this group, in ms */
-  longestStreakMs?: number;
-  /** Last streak milestone (in hours) that was announced, to avoid re-announcing */
-  lastMilestoneHours?: number;
   /** Whether to append a shelter activity to alert messages */
   activitiesEnabled?: boolean;
+  /** Total cumulative milliseconds spent in shelter since bot joined */
+  totalShelterTimeMs?: number;
 }
 
 /** Configuration for a single WhatsApp group's alert monitoring */
@@ -68,6 +62,8 @@ export interface GroupConfig {
   enabled: boolean;
   /** Optional feature toggles and streak state */
   settings: GroupSettings;
+  /** ISO timestamp of when the bot first joined/was approved in this group */
+  createdAt?: string;
 }
 
 // =====================

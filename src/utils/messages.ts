@@ -3,7 +3,7 @@
  *
  * All messages the bot sends to WhatsApp groups are defined here.
  * Supports both Hebrew (he) and English (en) languages.
- * Tone: chill, friendly, a bit cheeky - not military/formal.
+ * Tone: professional but warm.
  */
 
 import { RedAlertEvent } from '../types';
@@ -26,24 +26,32 @@ const SHELTER_TIDBITS: string[] = [
   'ישראל שתלה כל כך הרבה עצים שהיא המדינה היחידה שנכנסה למאה ה-21 עם יותר עצים ממה שהתחילה איתם 🌳',
   'ישראל ממחזרת 90% ממי השפכים שלה. מקום שני? ספרד עם 20%. פשוט ליגה אחרת 💧',
 
-  // Random weird & wonderful
-  'לתמנון יש 3 לבבות, דם כחול ו-9 מוחות. בעצם, הוא מוכשר יותר מרובנו 🐙',
-  'דבש לא מתקלקל לעולם. מצאו דבש בן 3,000 שנה במצרים ועדיין אפשר לאכול אותו. תאריך תפוגה? לא מכירים 🍯',
-  'כלבים יודעים להריח אם עצוב לכם. חתולים? גם יודעים. פשוט לא אכפת להם 🐕',
-  'נמלים לא ישנות לעולם. אולי בגלל זה הן תמיד כזה עצבניות 🐜',
-  'קואלות ישנות 22 שעות ביום. מצד שני, הן לא צריכות להכין ארוחת בוקר לילדים 🐨',
-  'הלב של שרימפס נמצא בראש שלו. לפחות הוא חושב עם הלב, לא? 🦐',
-  'פרפרים טועמים עם הרגליים. אוקיי, זה פשוט מגעיל 🦋',
-  'בננה היא מבחינה טכנית סוג של גרגר. תות שדה? דווקא לא. העולם הזה שקרי 🍌',
-  'לג׳ירפה ולבן אדם יש אותו מספר חוליות צוואר: 7. אבל רק אחד מהם מרגיש מוזר עם צוואר קצר 🦒',
-  'יותר אנשים נפגעים בשנה ממכונות שתייה אוטומטיות מאשר מכרישים. המכונות מנצחות 🦈',
-
-  // Existential & wholesome
-  'יש יותר כוכבים ביקום מגרגרי חול בכל חופי העולם ביחד. אנחנו קטנים. בצורה טובה ⭐',
-  'עצי אקליפטוס משחררים שמנים שיוצרים ערפל כחלחל. לכן ההרים הכחולים באוסטרליה באמת כחולים 🏔️',
-  'הצבע כתום קיבל את השם שלו מהפרי, לא להפך. לפני כן קראו לצבע "אדום-צהוב". עצלנים 🍊',
-  'תינוקות נולדים בלי פיקות ברך. הן מתפתחות רק אחר כך. תינוקות הם בעצם חייזרים רכים 👶',
-  'מדוזות חיות כבר 650 מיליון שנה בלי מוח, לב או עצמות. ועדיין שורדות. מעוררות השראה 🪼',
+  // Surprising trivia
+  'דבש לא מתקלקל לעולם — מצאו דבש בן 3,000 שנה במצרים ועדיין היה ראוי לאכילה 🍯',
+  'נפוליאון הותקף פעם בידי נחיל של ארנבות במהלך ציד מאורגן. הארנבות ניצחו 🐇',
+  'אוסטרליה רחבה יותר מהירח. רוחב אוסטרליה: 4,000 ק"מ, קוטר הירח: 3,400 ק"מ 🌙',
+  'נוגה (Venus) היא כוכב הלכת היחיד במערכת השמש שמסתובב בכיוון השעון 🪐',
+  'הלשון של לוויתן כחול שוקלת כמו פיל שלם 🐋',
+  'חיית המדינה הרשמית של סקוטלנד היא חד-קרן 🦄',
+  'בננות זוהרות בכחול תחת אור אולטרה-סגול 🍌',
+  'סלבדור דאלי עיצב את הלוגו של סוכריות צ\'ופה צ\'ופס 🎨',
+  'ללובסטרים יש דם כחול 🦞',
+  'סנטרל פארק בניו יורק גדול מכל שטח מדינת מונקו 🌳',
+  'לתמנון יש 3 לבבות, דם כחול ו-9 מוחות 🐙',
+  'צרפת מחזיקה ב-12 אזורי זמן — הכי הרבה מכל מדינה בעולם 🇫🇷',
+  'תינוקות נולדים עם 275-300 עצמות, אבל למבוגר יש רק 206 👶',
+  'אברהם לינקולן החזיק רישיון ברמנות 🍺',
+  'ואן גוך מכר רק ציור אחד בחייו 🖼️',
+  'הכבד הוא האיבר היחיד בגוף שמתחדש לחלוטין 🫀',
+  'ענן ממוצע שוקל מעל 450 טון ☁️',
+  'יש יותר כוכבים ביקום מגרגרי חול בכל חופי העולם ⭐',
+  'דולפינים מעניקים לעצמם שמות — הם כמעט המין היחיד שעושה את זה מלבד בני אדם 🐬',
+  'כל דגי הליצן נולדים זכרים ויכולים להפוך לנקבות בהמשך חייהם 🐠',
+  'המוח שורף 400-500 קלוריות ביום — גם בלי להתאמץ 🧠',
+  'סודן מכילה יותר פירמידות מכל מדינה אחרת בעולם, כולל מצרים 🏛️',
+  'הקרב הקצר ביותר בהיסטוריה נמשך 38 דקות — בין בריטניה לזנזיבר ⚔️',
+  'גוגל תמונות נוצר בגלל השמלה הירוקה של ג\'ניפר לופז בטקס הגראמי בשנת 2000 📸',
+  'לימונים צפים במים, אבל ליימים שוקעים 🍋',
 ];
 
 /** Pick a random tidbit */
@@ -93,62 +101,6 @@ const SHELTER_ACTIVITIES: string[] = [
 /** Pick a random shelter activity */
 export function getRandomActivity(): string {
   return SHELTER_ACTIVITIES[Math.floor(Math.random() * SHELTER_ACTIVITIES.length)];
-}
-
-// =====================
-// Streak Messages
-// =====================
-
-/** Format streak duration in Hebrew or English */
-function formatStreakDuration(hours: number, language: 'he' | 'en'): string {
-  if (language === 'he') {
-    if (hours < 24) return `${hours} שעות`;
-    if (hours < 48) return 'יום שלם';
-    if (hours < 168) return `${Math.round(hours / 24)} ימים`;
-    return 'שבוע שלם';
-  } else {
-    if (hours < 24) return `${hours} hours`;
-    if (hours < 48) return 'a full day';
-    if (hours < 168) return `${Math.round(hours / 24)} days`;
-    return 'a full week';
-  }
-}
-
-/** Casual Hebrew/English comments per milestone */
-const STREAK_COMMENTS: Record<number, { he: string; en: string }> = {
-  6:   { he: 'נושמים רגע ☀️', en: 'Taking a breath ☀️' },
-  12:  { he: 'חצי יום של שקט — נהנים ממנו 😎', en: 'Half a day of quiet — enjoying it 😎' },
-  24:  { he: 'יום שלם ללא אזעקות. ממשיכים כך 💙', en: 'A full day without alerts. Let\'s keep it 💙' },
-  48:  { he: 'יומיים! כבר אפשר להירגע קצת 😌', en: 'Two days! Starting to relax 😌' },
-  72:  { he: 'שלושה ימים. נראה טוב מאוד 💪', en: 'Three days. Looking really good 💪' },
-  168: { he: 'שבוע שלם! זה ממש מרשים 🌟', en: 'A whole week! That\'s seriously impressive 🌟' },
-};
-
-/**
- * Build a streak milestone announcement message.
- * @param hours - Which milestone (6, 12, 24, 48, 72, or 168)
- * @param isRecord - Whether this beats the group's previous record
- * @param language - Message language
- */
-export function buildStreakMilestoneMessage(
-  hours: number,
-  isRecord: boolean,
-  language: 'he' | 'en'
-): string {
-  const duration = formatStreakDuration(hours, language);
-  const comment = STREAK_COMMENTS[hours] ?? { he: 'רגוע פה 🕊️', en: 'Quiet here 🕊️' };
-
-  if (language === 'he') {
-    if (isRecord) {
-      return `🏆 *שיא חדש!*\n\nכבר *${duration}* ללא אזעקות — הכי ארוך שהיה! ממשיכים לשמור 🤞\n\n_כיבוי: !streak off_`;
-    }
-    return `🕊️ *${duration} ללא אזעקות*\n\n${comment.he}\n\n_כיבוי: !streak off_`;
-  } else {
-    if (isRecord) {
-      return `🏆 *New record!*\n\n*${duration}* without alerts — personal best! Keep it going 🤞\n\n_disable: !streak off_`;
-    }
-    return `🕊️ *${duration} without alerts*\n\n${comment.en}\n\n_disable: !streak off_`;
-  }
 }
 
 // =====================
@@ -209,16 +161,16 @@ export function buildAlertMessage(
 
   if (language === 'he') {
     const typeName = ALERT_TYPE_NAMES_HE[alert.type] || alert.type;
-    let msg = `📢 *יאללה, ${typeName}*\n\n`;
+    let msg = `🚨 *התראה - ${typeName}*\n\n`;
     msg += `📍 ${cities}\n\n`;
-    msg += `זזים למרחב המוגן ברוגע, בלי פאניקה 🙏\n\n`;
+    msg += `היכנסו למרחב המוגן, אודיע לכם מתי לצאת. 🙏\n\n`;
     msg += `_${getRandomTidbit()}_`;
     return msg;
   } else {
     const typeName = ALERT_TYPE_NAMES_EN[alert.type] || alert.type;
-    let msg = `📢 *Heads up - ${typeName}*\n\n`;
+    let msg = `🚨 *Alert - ${typeName}*\n\n`;
     msg += `📍 ${cities}\n\n`;
-    msg += `Move to your safe room, no panic 🙏\n\n`;
+    msg += `Enter your safe room, I'll let you know when it's clear. 🙏\n\n`;
     msg += `_${getRandomTidbit()}_`;
     return msg;
   }
@@ -235,28 +187,6 @@ export function buildActivityMessage(language: 'he' | 'en'): string {
 }
 
 /**
- * Build a wrap-up message sent after shelter fully clears,
- * summarising how long the group was in shelter.
- */
-export function buildShelterWrapUpMessage(durationMs: number, language: 'he' | 'en'): string {
-  const minutes = Math.round(durationMs / 60_000);
-
-  if (language === 'he') {
-    const label =
-      minutes < 1 ? 'פחות מדקה' :
-      minutes === 1 ? 'כדקה' :
-      `כ-${minutes} דקות`;
-    return `⏱️ *${label} בממ"ד* — כולם בחוץ? 🤞`;
-  } else {
-    const label =
-      minutes < 1 ? 'under a minute' :
-      minutes === 1 ? 'about 1 minute' :
-      `about ${minutes} minutes`;
-    return `⏱️ *${label} in the shelter* — everyone out? 🤞`;
-  }
-}
-
-/**
  * Build a newsFlash message - heads-up that an alert may come soon.
  */
 export function buildNewsFlashMessage(
@@ -266,39 +196,89 @@ export function buildNewsFlashMessage(
   const cities = matchedCities.join(', ');
 
   if (language === 'he') {
-    let msg = `⚡ *שימו לב*\n\n`;
+    let msg = `⚠️ *הודעה מקדימה*\n\n`;
     msg += `📍 ${cities}\n\n`;
-    msg += `ייתכן שתישמע התרעה בדקות הקרובות.\n`;
-    msg += `כדאי להיות ליד מרחב מוגן 😎`;
+    msg += `ייתכנו אזעקות בקרוב, ודאו שיש מרחב מוגן בקרבתכם.`;
     return msg;
   } else {
-    let msg = `⚡ *Heads Up*\n\n`;
+    let msg = `⚠️ *Advance Notice*\n\n`;
     msg += `📍 ${cities}\n\n`;
-    msg += `Alert might go off soon.\n`;
-    msg += `Maybe hang near a shelter, just casually 😎`;
+    msg += `Alerts may sound shortly. Make sure you have a safe room nearby.`;
     return msg;
   }
 }
 
 /**
  * Build the "safe to leave shelter" message for an end alert.
+ * If durationMs is provided, the shelter time is included in the message.
  */
 export function buildEndAlertMessage(
   clearedCities: string[],
-  language: 'he' | 'en'
+  language: 'he' | 'en',
+  durationMs?: number,
+  visitCount?: number,
+  totalShelterTimeMs?: number
 ): string {
   const cities = clearedCities.join(', ');
 
+  let durationLabel = '';
+  if (durationMs !== undefined) {
+    const minutes = Math.round(durationMs / 60_000);
+    if (language === 'he') {
+      durationLabel = minutes < 1 ? 'פחות מדקה' : minutes === 1 ? 'כדקה' : `כ-${minutes} דקות`;
+    } else {
+      durationLabel = minutes < 1 ? 'under a minute' : minutes === 1 ? 'about 1 minute' : `about ${minutes} minutes`;
+    }
+  }
+
+  const totalLabel = formatTotalShelterTime(totalShelterTimeMs, language);
+
   if (language === 'he') {
-    let msg = `✅ *נגמר! אפשר לצאת* 🎉\n\n`;
+    let msg = `🚪 *האירוע הסתיים*\n\n`;
     msg += `📍 ${cities}\n\n`;
-    msg += `חוזרים לשגרה. שמרו על עצמכם 💙`;
+    msg += `ניתן לצאת מהמרחב המוגן. שמרו על עצמכם 💙`;
+    if (durationLabel || visitCount || totalLabel) {
+      msg += `\n`;
+      if (durationLabel) msg += `\n⏱️ סה"כ זמן בממ"ד: *${durationLabel}*`;
+      if (visitCount) msg += `\n📊 מספר כניסות לממ"ד מאז שהצטרפתי לקבוצה: *${visitCount}*`;
+      if (totalLabel) msg += `\n⏱️ סה"כ זמן בממ"ד מאז שהצטרפתי: *${totalLabel}*`;
+    }
     return msg;
   } else {
-    let msg = `✅ *All clear! You're free* 🎉\n\n`;
+    let msg = `🚪 *Event Ended*\n\n`;
     msg += `📍 ${cities}\n\n`;
-    msg += `Back to normal. Stay safe out there 💙`;
+    msg += `You may leave the safe room. Stay safe 💙`;
+    if (durationLabel || visitCount || totalLabel) {
+      msg += `\n`;
+      if (durationLabel) msg += `\n⏱️ Time in shelter: *${durationLabel}*`;
+      if (visitCount) msg += `\n📊 Shelter visits since I joined this group: *${visitCount}*`;
+      if (totalLabel) msg += `\n⏱️ Total shelter time since I joined: *${totalLabel}*`;
+    }
     return msg;
+  }
+}
+
+/**
+ * Format total cumulative shelter time for display.
+ * Returns empty string if undefined or zero.
+ */
+export function formatTotalShelterTime(totalMs: number | undefined, language: 'he' | 'en'): string {
+  if (totalMs === undefined || totalMs <= 0) return '';
+
+  const totalMinutes = Math.round(totalMs / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+
+  if (language === 'he') {
+    if (hours > 0) {
+      return mins > 0 ? `${hours} שעות ו-${mins} דקות` : `${hours} שעות`;
+    }
+    return totalMinutes < 1 ? 'פחות מדקה' : `${totalMinutes} דקות`;
+  } else {
+    if (hours > 0) {
+      return mins > 0 ? `${hours} hours and ${mins} minutes` : `${hours} hours`;
+    }
+    return totalMinutes < 1 ? 'under a minute' : `${totalMinutes} minutes`;
   }
 }
 
@@ -406,7 +386,6 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!lang* he/en - לשנות שפה
 *!status* - מה המצב שלי
 *!test* - בדיקת חיים
-*!streak* on/off - מד שעות שקט בין אזעקות ⏱️
 *!activities* on/off - אתגרים קטנים בזמן האזעקה 🎮
 *!ask* שאלה - לשאול את ה-AI כל שאלה 🤖
 *אקו* שאלה - אותו דבר, רק יותר טבעי 😎
@@ -423,7 +402,6 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!lang* he/en - Change language
 *!status* - How I'm doing
 *!test* - Am I alive?
-*!streak* on/off - Silence streak milestones ⏱️
 *!activities* on/off - Mini shelter challenges 🎮
 *!ask* question - Ask the AI anything 🤖
 *echo* question - Same thing, just more natural 😎

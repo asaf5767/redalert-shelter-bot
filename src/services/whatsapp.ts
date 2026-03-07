@@ -15,6 +15,7 @@ import makeWASocket, {
   fetchLatestBaileysVersion,
   WAMessage,
   useMultiFileAuthState,
+  makeCacheableSignalKeyStore,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -103,6 +104,13 @@ export async function connectToWhatsApp(
 
   const { state, saveCreds } = authState;
 
+  // Wrap signal keys with in-memory cache to prevent race conditions
+  // during concurrent message decryption (prevents "Bad MAC" errors)
+  const cachedKeys = makeCacheableSignalKeyStore(
+    state.keys,
+    pino({ level: 'warn' }) as any
+  );
+
   // Get latest Baileys version for compatibility
   const { version } = await fetchLatestBaileysVersion();
   log.info({ version }, 'Using Baileys version');
@@ -110,11 +118,11 @@ export async function connectToWhatsApp(
   // Create the WhatsApp socket
   sock = makeWASocket({
     version,
-    logger: pino({ level: 'silent' }) as any, // Silence Baileys internal logs
+    logger: pino({ level: 'warn' }) as any, // Show decryption errors and session warnings
     printQRInTerminal: false, // We handle QR display ourselves
     auth: {
       creds: state.creds,
-      keys: state.keys,
+      keys: cachedKeys,
     },
     generateHighQualityLinkPreview: false,
     getMessage: async () => undefined, // Required by Baileys for message retries
@@ -227,6 +235,12 @@ export async function connectToWhatsApp(
     // Only process new messages, not history sync
     if (type !== 'notify') return;
 
+    // Dedup first, then process all messages concurrently.
+    // Sequential `await` in a loop caused the second message to be
+    // dropped when two messages arrived in quick succession (the handler
+    // for message 1 — especially AI calls — blocked message 2).
+    const toProcess: Array<{ message: typeof messages[0]; incoming: IncomingMessage }> = [];
+
     for (const message of messages) {
       // Dedup: skip messages we have already processed.
       // Protects against Baileys delivering the same message twice
@@ -311,14 +325,18 @@ export async function connectToWhatsApp(
         },
       };
 
-      // Call the message handler (command processor)
-      if (messageHandler) {
-        try {
-          await messageHandler(incoming);
-        } catch (err) {
-          log.error({ err, chatId }, 'Error in message handler');
-        }
-      }
+      toProcess.push({ message, incoming });
+    }
+
+    // Process all messages concurrently — no message waits for another
+    if (messageHandler && toProcess.length > 0) {
+      await Promise.allSettled(
+        toProcess.map(({ incoming }) =>
+          messageHandler!(incoming).catch(err =>
+            log.error({ err, chatId: incoming.chatId }, 'Error in message handler')
+          )
+        )
+      );
     }
   });
 }
