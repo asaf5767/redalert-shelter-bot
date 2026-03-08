@@ -25,6 +25,16 @@ const log = createLogger('redalert');
 // Socket.IO client instance
 let socket: Socket | null = null;
 
+// Stored callbacks for reconnection
+let storedOnAlert: AlertCallback | null = null;
+let storedOnEndAlert: EndAlertCallback | null = null;
+
+// Watchdog: reconnect if we've been disconnected for too long
+const WATCHDOG_CHECK_INTERVAL_MS = 60_000; // check every 60s
+const WATCHDOG_MAX_DISCONNECT_MS = 5 * 60_000; // reconnect if down for 5+ min
+let lastConnectedAt: number | null = null;
+let watchdogTimer: ReturnType<typeof setInterval> | null = null;
+
 // Callback types
 type AlertCallback = (alerts: RedAlertEvent[]) => void;
 type EndAlertCallback = (alert: RedAlertEvent) => void;
@@ -46,9 +56,14 @@ export function connectToRedAlert(
   onAlert: AlertCallback,
   onEndAlert: EndAlertCallback
 ): void {
+  // Store callbacks so the watchdog can reconnect without needing them passed in
+  storedOnAlert = onAlert;
+  storedOnEndAlert = onEndAlert;
+
   if (socket) {
     log.warn('RedAlert already connected - disconnecting first');
     socket.disconnect();
+    socket = null;
   }
 
   if (REDALERT_TEST_MODE) {
@@ -56,6 +71,8 @@ export function connectToRedAlert(
   } else {
     connectProductionMode(onAlert, onEndAlert);
   }
+
+  startWatchdog();
 }
 
 /**
@@ -119,6 +136,51 @@ function connectTestMode(
 }
 
 /**
+ * Watchdog: checks every minute whether the socket is connected.
+ * If it has been disconnected for longer than WATCHDOG_MAX_DISCONNECT_MS,
+ * tear down the socket and create a fresh one — this recovers from cases
+ * where socket.io's internal reconnection loop stalls (e.g. after an
+ * auth rejection the server never re-allows).
+ */
+function startWatchdog(): void {
+  if (watchdogTimer) clearInterval(watchdogTimer);
+
+  watchdogTimer = setInterval(() => {
+    if (!storedOnAlert || !storedOnEndAlert) return;
+
+    if (socket?.connected) {
+      // All good — record the last known-good time
+      lastConnectedAt = Date.now();
+      return;
+    }
+
+    const disconnectedFor = lastConnectedAt
+      ? Date.now() - lastConnectedAt
+      : WATCHDOG_MAX_DISCONNECT_MS + 1; // treat "never connected" as long disconnect
+
+    if (disconnectedFor >= WATCHDOG_MAX_DISCONNECT_MS) {
+      log.warn(
+        { disconnectedForSec: Math.round(disconnectedFor / 1000) },
+        'RedAlert watchdog: disconnected too long — forcing fresh reconnect'
+      );
+      // Tear down the stale socket so socket.io doesn't try to reuse it
+      if (socket) {
+        try { socket.removeAllListeners(); socket.disconnect(); } catch (_) { /* ignore */ }
+        socket = null;
+      }
+      // Create a brand-new connection
+      if (REDALERT_TEST_MODE) {
+        connectTestMode(storedOnAlert, storedOnEndAlert);
+      } else {
+        connectProductionMode(storedOnAlert, storedOnEndAlert);
+      }
+      // Reset so we don't immediately re-trigger
+      lastConnectedAt = Date.now();
+    }
+  }, WATCHDOG_CHECK_INTERVAL_MS);
+}
+
+/**
  * Set up Socket.IO event listeners for alerts and connection status.
  */
 function setupEventListeners(
@@ -129,6 +191,7 @@ function setupEventListeners(
   // ---- Connection Events ----
 
   sock.on('connect', () => {
+    lastConnectedAt = Date.now();
     log.info(
       { testMode: REDALERT_TEST_MODE },
       'Connected to RedAlert server'
@@ -140,15 +203,26 @@ function setupEventListeners(
   });
 
   sock.on('connect_error', (error) => {
-    log.error({ error: error.message }, 'RedAlert connection error');
+    // Log error.data if the server sent extra details (e.g. "Unauthorized")
+    const extra = (error as any).data ?? {};
+    log.error({ error: error.message, data: extra }, 'RedAlert connection error');
   });
 
   sock.io.on('reconnect', (attempt) => {
+    lastConnectedAt = Date.now();
     log.info({ attempt }, 'Reconnected to RedAlert server');
   });
 
   sock.io.on('reconnect_attempt', (attempt) => {
     log.debug({ attempt }, 'RedAlert reconnection attempt...');
+  });
+
+  sock.io.on('reconnect_error', (error) => {
+    log.warn({ error: (error as any).message }, 'RedAlert reconnection attempt failed');
+  });
+
+  sock.io.on('reconnect_failed', () => {
+    log.error('RedAlert reconnect_failed — all attempts exhausted (should not happen with Infinity)');
   });
 
   // ---- Alert Events ----
@@ -210,6 +284,10 @@ export function isRedAlertConnected(): boolean {
 
 /** Disconnect from the RedAlert server */
 export function disconnectRedAlert(): void {
+  if (watchdogTimer) {
+    clearInterval(watchdogTimer);
+    watchdogTimer = null;
+  }
   if (socket) {
     socket.disconnect();
     socket = null;
