@@ -104,6 +104,11 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
     { config: GroupConfig; newCities: string[]; alertType: string; wasAlreadySheltering: boolean }
   >();
 
+  // Collect endAlerts from this batch to process AFTER shelter notifications.
+  // Processing them inline (before the send phase) causes all-clear to arrive
+  // before the shelter message when both appear in the same event batch.
+  const deferredEndAlerts: RedAlertEvent[] = [];
+
   for (const alert of alerts) {
     log.info(
       { type: alert.type, cities: alert.cities },
@@ -116,9 +121,9 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
       continue;
     }
 
-    // endAlert coming through the general alert event - handle as end, not shelter
+    // endAlert coming through the general alert event — defer until after shelter sends
     if (alert.type === 'endAlert') {
-      await handleEndAlert(alert);
+      deferredEndAlerts.push(alert);
       continue;
     }
 
@@ -225,6 +230,11 @@ export async function handleAlert(alerts: RedAlertEvent[]): Promise<void> {
       eventType: 'alert',
       rawData: alerts,
     });
+  }
+
+  // Process any endAlerts that were in this batch — after shelter messages so ordering is correct
+  for (const endAlert of deferredEndAlerts) {
+    await handleEndAlert(endAlert);
   }
 }
 
