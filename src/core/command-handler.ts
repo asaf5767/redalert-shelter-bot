@@ -194,8 +194,8 @@ async function handleAddCity(
   if (!args) {
     const hint =
       lang === 'he'
-        ? '❌ נא לציין ערים. דוגמה: *!addcity תל אביב, חיפה*'
-        : '❌ Please specify cities. Example: *!addcity Tel Aviv, Haifa*';
+        ? '❌ אממ... ערים? צריך לפחות שם של עיר אחת. דוגמה: *!addcity תל אביב, חיפה*'
+        : '❌ Uh... cities? Need at least one city name. Example: *!addcity Tel Aviv, Haifa*';
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -209,8 +209,8 @@ async function handleAddCity(
   if (cities.length === 0) {
     const hint =
       lang === 'he'
-        ? '❌ נא לציין לפחות עיר אחת.'
-        : '❌ Please specify at least one city.';
+        ? '❌ לפחות עיר אחת, לא? אני לא קורא מחשבות. עדיין.'
+        : '❌ At least one city, no? I don\'t read minds. Yet.';
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -257,8 +257,8 @@ async function handleAddCity(
   } else {
     const msg =
       lang === 'he'
-        ? '✅ כל הערים כבר במעקב.'
-        : '✅ All cities are already being monitored.';
+        ? '✅ כבר עוקב. אני לא שוכח, בניגוד אליכם 😏'
+        : '✅ Already watching those. I don\'t forget, unlike some of you 😏';
     await sendGroupMessage(groupId, msg);
   }
 }
@@ -275,8 +275,8 @@ async function handleRemoveCity(
   if (!args) {
     const hint =
       lang === 'he'
-        ? '❌ נא לציין ערים להסרה. דוגמה: *!removecity חיפה*'
-        : '❌ Please specify cities. Example: *!removecity Haifa*';
+        ? '❌ איזו עיר להוריד? צריך שם. דוגמה: *!removecity חיפה*'
+        : '❌ Which city to remove? Need a name. Example: *!removecity Haifa*';
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -293,8 +293,8 @@ async function handleRemoveCity(
   } else {
     const msg =
       lang === 'he'
-        ? '❌ הערים שצוינו לא נמצאו במעקב.'
-        : '❌ None of the specified cities were being monitored.';
+        ? '❌ הערים האלה לא ברשימה שלי. אי אפשר להוריד מה שלא קיים, גאונים'
+        : '❌ Those cities aren\'t on my list. Can\'t remove what doesn\'t exist, geniuses';
     await sendGroupMessage(groupId, msg);
   }
 }
@@ -337,8 +337,8 @@ async function handleSearch(
   if (!args) {
     const hint =
       lang === 'he'
-        ? `❌ נא לציין טקסט לחיפוש. דוגמה: *!search ראש*\n📊 ${getCityCount()} ערים במאגר.`
-        : `❌ Please specify search text. Example: *!search rosh*\n📊 ${getCityCount()} cities in database.`;
+        ? `❌ מה לחפש? תנו לי רמז. דוגמה: *!search ראש*\n📊 ${getCityCount()} ערים במאגר, אמצא כל אחת`
+        : `❌ Search for what? Give me a hint. Example: *!search rosh*\n📊 ${getCityCount()} cities in database, I'll find any of them`;
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -348,8 +348,8 @@ async function handleSearch(
   if (results.length === 0) {
     const msg =
       lang === 'he'
-        ? `❌ לא נמצאו תוצאות עבור "${args}".`
-        : `❌ No results found for "${args}".`;
+        ? `❌ "${args}"? לא מצאתי כלום. בטוחים שזו עיר אמיתית?`
+        : `❌ "${args}"? Found nothing. You sure that\'s a real city?`;
     await sendGroupMessage(groupId, msg);
     return;
   }
@@ -458,8 +458,8 @@ async function handleAsk(
   if (!args) {
     const hint =
       lang === 'he'
-        ? '🤖 מה אתה רוצה לשאול? דוגמה: *אקו כמה זמן נשארים במרחב מוגן?*'
-        : '🤖 What do you want to ask? Example: *echo how long should I stay in the shelter?*';
+        ? '🤖 קראת לי? אז תשאל משהו. דוגמה: *אקו כמה זמן נשארים במרחב מוגן?*'
+        : '🤖 You called? Then ask something. Example: *echo how long should I stay in the shelter?*';
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -502,8 +502,8 @@ async function handleAsk(
     log.error({ err }, 'AI request failed');
     const errMsg =
       lang === 'he'
-        ? '❌ אופס, ה-AI לא הצליח לענות. נסה שוב.'
-        : '❌ Oops, AI failed to respond. Try again.';
+        ? '❌ המוח שלי תקוע רגע. נסו שוב, אני בדרך כלל גאון'
+        : '❌ Brain freeze. Try again, I\'m usually a genius';
     await sendGroupMessage(groupId, errMsg);
   }
 }
@@ -526,8 +526,8 @@ async function handleActivities(
     const isOn = config.settings.activitiesEnabled !== false;
     const current = isOn ? (lang === 'he' ? 'פעיל ✅' : 'on ✅') : (lang === 'he' ? 'כבוי ❌' : 'off ❌');
     const hint = lang === 'he'
-      ? `🎮 *פעילויות בממ"ד* — מוסיף אתגר קטן להודעות האזעקה כדי לעבור את הזמן.\n\nמצב נוכחי: ${current}\n\nשלחו *!activities on* להפעיל או *!activities off* לכבות.`
-      : `🎮 *Shelter activities* — adds a mini challenge to alert messages to pass the time.\n\nCurrent: ${current}\n\nSend *!activities on* to enable or *!activities off* to disable.`;
+      ? `🎮 *פעילויות בממ"ד* — אתגרים קטנים בזמן אזעקה כי מה עוד יש לעשות שם.\n\nמצב נוכחי: ${current}\n\nשלחו *!activities on* להפעיל או *!activities off* לכבות.`
+      : `🎮 *Shelter activities* — mini challenges during alerts because what else are you gonna do in there.\n\nCurrent: ${current}\n\nSend *!activities on* to enable or *!activities off* to disable.`;
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -537,11 +537,11 @@ async function handleActivities(
 
   const msg = lang === 'he'
     ? enabled
-      ? `🎮 פעילויות בממ"ד הופעלו! בפעם הבאה שתהיה אזעקה, אוסיף אתגר קטן 😄`
-      : `🎮 פעילויות בממ"ד כובו.`
+      ? `🎮 פעילויות בממ"ד הופעלו! בפעם הבאה שתהיה אזעקה, אדאג שלא תשתעממו 😄`
+      : `🎮 פעילויות בממ"ד כובו. תשתעממו לבד`
     : enabled
-      ? `🎮 Shelter activities enabled! Next alert will include a mini challenge 😄`
-      : `🎮 Shelter activities disabled.`;
+      ? `🎮 Shelter activities enabled! Next alert, I'll make sure you're not bored 😄`
+      : `🎮 Shelter activities disabled. You're on your own for entertainment`;
 
   await sendGroupMessage(groupId, msg);
 }
