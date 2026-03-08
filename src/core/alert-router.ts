@@ -293,7 +293,10 @@ export async function handleEndAlert(alert: RedAlertEvent): Promise<void> {
 
   const groupsNotified: string[] = [];
 
-  // Check each group that has active shelters
+  // Track which groups were already handled by the activeShelters loop
+  const handledGroupIds = new Set<string>();
+
+  // Check each group that has active shelters (normal flow — bot was running when alert started)
   for (const [groupId, shelter] of activeShelters.entries()) {
     // Find which of this group's active cities are being cleared
     const clearedCities: string[] = [];
@@ -351,6 +354,40 @@ export async function handleEndAlert(alert: RedAlertEvent): Promise<void> {
 
     await sendGroupMessage(groupId, message);
     groupsNotified.push(groupId);
+    handledGroupIds.add(groupId);
+  }
+
+  // ─── Fallback: handle endAlert after bot restart ───
+  // When the bot restarts, activeShelters is empty (in-memory state is lost).
+  // If an endAlert arrives for a siren that started BEFORE the restart, the
+  // activeShelters loop above won't find any groups. We fall back to
+  // getMatchingGroups() which checks group→city config to find affected groups.
+  // This ensures "safe to leave" messages are always sent, even after a restart.
+  // Tradeoff: no duration/visit stats (we don't know when the shelter session started).
+  const fallbackGroups = groupConfig.getMatchingGroups(alert.cities);
+
+  for (const { config, matchedCities } of fallbackGroups) {
+    // Skip groups already handled by the activeShelters loop above
+    if (handledGroupIds.has(config.groupId)) continue;
+
+    // Dedup: prevents double-send from dual Socket.IO paths (alert array + dedicated event)
+    if (isDuplicate(config.groupId, 'endAlert', matchedCities)) continue;
+
+    // Send simplified "safe to leave" (no duration/visit stats — we don't have startTime)
+    const message = buildEndAlertMessage(matchedCities, config.language);
+
+    log.info(
+      {
+        groupId: config.groupId,
+        groupName: config.groupName,
+        matchedCities,
+        fallback: true,
+      },
+      'Sending end-alert to group (fallback — no active shelter state)'
+    );
+
+    await sendGroupMessage(config.groupId, message);
+    groupsNotified.push(config.groupId);
   }
 
   // Log the end alert
