@@ -278,7 +278,7 @@ describe('buildAlertMessage', () => {
 
   it('Hebrew: uses professional alert header', () => {
     const msg = buildAlertMessage(missilesAlert, ['תל אביב'], 'he');
-    expect(msg).toContain('התראה');
+    expect(msg).toContain('התרעה');
   });
 
   it('English: uses professional alert header', () => {

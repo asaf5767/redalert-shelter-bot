@@ -161,7 +161,7 @@ export function buildAlertMessage(
 
   if (language === 'he') {
     const typeName = ALERT_TYPE_NAMES_HE[alert.type] || alert.type;
-    let msg = `🚨 *התראה - ${typeName}*\n\n`;
+    let msg = `🚨 *התרעה - ${typeName}*\n\n`;
     msg += `📍 ${cities}\n\n`;
     msg += `היכנסו למרחב המוגן, אודיע לכם מתי לצאת. 🙏\n\n`;
     msg += `_${getRandomTidbit()}_`;
