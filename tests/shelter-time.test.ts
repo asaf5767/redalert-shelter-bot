@@ -138,7 +138,8 @@ describe('buildEndAlertMessage with totalShelterTimeMs', () => {
     const msg = buildEndAlertMessage(['Haifa'], 'en');
     expect(msg).toContain('Event Ended');
     expect(msg).toContain('Haifa');
-    expect(msg).toContain('safe');
+    // One of the rotating end-alert lines is always present (don't assert a specific one)
+    expect(msg).toMatch(/come out|routine|intact|clear/i);
   });
 
   it('shows all three stats together', () => {
