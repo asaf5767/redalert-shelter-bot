@@ -49,6 +49,12 @@ const pendingMessages: Array<{ groupId: string; text: string }> = [];
 const processedMessageIds = new Map<string, number>(); // messageId -> timestamp
 const MESSAGE_DEDUP_TTL_MS = 60_000; // 60 seconds
 
+// LID → phone number mapping for personal chats.
+// WhatsApp sends some DMs with a @lid chatId instead of a phone @s.whatsapp.net chatId.
+// When message.key.senderPn is present we can resolve it; we cache the result so
+// subsequent messages without senderPn still get routed to the correct phone-JID entry.
+const lidToPhoneMap = new Map<string, string>(); // lid_number → phone_number (digits only)
+
 // =====================
 // Connection
 // =====================
@@ -276,14 +282,18 @@ export async function connectToWhatsApp(
 
       // For DMs with LID format, resolve to phone-based JID for sending replies.
       // Baileys can't send to @lid addresses — need @s.whatsapp.net format.
+      // We also cache LID→phone mappings so commands always hit the phone-JID config
+      // entry even when senderPn is absent (e.g. after a reconnect).
       let replyChatId = chatId;
       if (!isGroup && chatId.endsWith('@lid')) {
         const keyAny = message.key as any;
+        const lidNumber = chatId.split('@')[0].split(':')[0];
         if (keyAny.senderPn) {
           const phone = keyAny.senderPn.split('@')[0].split(':')[0];
           replyChatId = `${phone}@s.whatsapp.net`;
-        } else if (keyAny.remoteJid && !keyAny.remoteJid.endsWith('@lid')) {
-          replyChatId = keyAny.remoteJid;
+          lidToPhoneMap.set(lidNumber, phone); // Cache for future messages
+        } else if (lidToPhoneMap.has(lidNumber)) {
+          replyChatId = `${lidToPhoneMap.get(lidNumber)!}@s.whatsapp.net`;
         }
       }
 
