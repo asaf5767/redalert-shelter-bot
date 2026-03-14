@@ -25,6 +25,8 @@ import {
   getBotJid,
   getBotLid,
   reactToMessage,
+  sendTypingIndicator,
+  stopTypingIndicator,
 } from '../services/whatsapp';
 import { isRedAlertConnected } from '../services/redalert';
 import { searchCities, findCity, getCityCount } from './city-database';
@@ -39,7 +41,7 @@ import {
   msgWelcome,
   buildTestAlertMessage,
 } from '../utils/messages';
-import { askAI, isAIEnabled } from '../services/ai';
+import { askAI, isAIEnabled, extractReactionEmoji } from '../services/ai';
 import { getConversationHistory, saveMessage } from '../services/supabase';
 import { createLogger } from '../utils/logger';
 import { BOT_PHONE_NUMBER } from '../config';
@@ -116,6 +118,9 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
   }
 
   const lang = config?.language || 'he';
+
+  // Show typing indicator while processing the command
+  sendTypingIndicator(message.chatId);
 
   // Route to the appropriate handler
   switch (command) {
@@ -466,8 +471,11 @@ async function handleAsk(
 
   // Instantly react to acknowledge the message
   if (messageKey) {
-    reactToMessage(messageKey, '🤔');
+    reactToMessage(messageKey, '👀');
   }
+
+  // Show typing indicator while AI thinks
+  sendTypingIndicator(groupId);
 
   try {
     // Build bot number list for identifying bot messages in history
@@ -480,7 +488,18 @@ async function handleAsk(
     const history = await getConversationHistory(groupId, botNumbers, 10);
 
     const response = await askAI(args, history, senderName);
-    const fullResponse = `🤖 ${response}`;
+
+    // Extract AI-picked contextual emoji from response
+    const { text, emoji } = extractReactionEmoji(response);
+
+    // Update reaction to contextual emoji (replaces 👀)
+    if (messageKey) {
+      reactToMessage(messageKey, emoji);
+    }
+
+    // Stop typing and send the response
+    stopTypingIndicator(groupId);
+    const fullResponse = `🤖 ${text}`;
     await sendGroupMessage(groupId, fullResponse);
 
     // Save bot's response to DB for conversation continuity
@@ -500,6 +519,13 @@ async function handleAsk(
     }).catch(() => {}); // Fire and forget
   } catch (err) {
     log.error({ err }, 'AI request failed');
+
+    // Error: change reaction to ❌
+    if (messageKey) {
+      reactToMessage(messageKey, '❌');
+    }
+    stopTypingIndicator(groupId);
+
     const errMsg =
       lang === 'he'
         ? '❌ המוח שלי תקוע רגע. נסו שוב, אני בדרך כלל גאון'

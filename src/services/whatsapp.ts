@@ -550,3 +550,29 @@ export function getSocket(): WASocket | null {
 export function getPendingMessageCount(): number {
   return pendingMessages.length;
 }
+
+/**
+ * Show "typing..." indicator in a chat.
+ * Non-fatal — silently fails if connection is down.
+ */
+export async function sendTypingIndicator(chatId: string): Promise<void> {
+  if (!sock || !isConnected) return;
+  try {
+    await sock.sendPresenceUpdate('composing', chatId);
+  } catch {
+    // Non-fatal — don't break the flow
+  }
+}
+
+/**
+ * Stop the typing indicator in a chat.
+ * Non-fatal — silently fails if connection is down.
+ */
+export async function stopTypingIndicator(chatId: string): Promise<void> {
+  if (!sock || !isConnected) return;
+  try {
+    await sock.sendPresenceUpdate('paused', chatId);
+  } catch {
+    // Non-fatal — don't break the flow
+  }
+}
