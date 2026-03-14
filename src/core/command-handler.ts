@@ -27,6 +27,8 @@ import {
   reactToMessage,
   sendTypingIndicator,
   stopTypingIndicator,
+  sendRecordingIndicator,
+  sendVoiceNote,
 } from '../services/whatsapp';
 import { isRedAlertConnected } from '../services/redalert';
 import { searchCities, findCity, getCityCount } from './city-database';
@@ -43,6 +45,7 @@ import {
 } from '../utils/messages';
 import { askAI, isAIEnabled, extractReactionEmoji } from '../services/ai';
 import { getConversationHistory, saveMessage } from '../services/supabase';
+import { textToVoiceNote, cleanupVoiceNote } from '../services/tts';
 import { createLogger } from '../utils/logger';
 import { BOT_PHONE_NUMBER } from '../config';
 import { setActivitiesEnabled } from './group-config';
@@ -460,7 +463,11 @@ async function handleAsk(
     return;
   }
 
-  if (!args) {
+  // Detect voice request (keywords anywhere in the message)
+  const wantsVoice = isVoiceRequest(args);
+  const aiQuestion = wantsVoice ? stripVoiceKeywords(args) : args;
+
+  if (!aiQuestion) {
     const hint =
       lang === 'he'
         ? '🤖 קראת לי? אז תשאל משהו. דוגמה: *אקו כמה זמן נשארים במרחב מוגן?*'
@@ -487,7 +494,7 @@ async function handleAsk(
     // Fetch recent conversation history from Supabase
     const history = await getConversationHistory(groupId, botNumbers, 10);
 
-    const response = await askAI(args, history, senderName);
+    const response = await askAI(aiQuestion, history, senderName);
 
     // Extract AI-picked contextual emoji from response
     const { text, emoji } = extractReactionEmoji(response);
@@ -497,10 +504,31 @@ async function handleAsk(
       reactToMessage(messageKey, emoji);
     }
 
-    // Stop typing and send the response
-    stopTypingIndicator(groupId);
+    // Decide whether to send as voice note
+    const randomVoice = !wantsVoice && Math.random() < 0.15; // 15% random chance
+    const useVoice = wantsVoice || randomVoice;
+
     const fullResponse = `🤖 ${text}`;
-    await sendGroupMessage(groupId, fullResponse);
+
+    if (useVoice) {
+      // Switch to "recording audio..." indicator
+      await sendRecordingIndicator(groupId);
+
+      const oggPath = await textToVoiceNote(text);
+      if (oggPath) {
+        await sendVoiceNote(groupId, oggPath);
+        cleanupVoiceNote(oggPath);
+      } else {
+        // TTS failed — fall back to text
+        log.warn('TTS failed, falling back to text response');
+        stopTypingIndicator(groupId);
+        await sendGroupMessage(groupId, fullResponse);
+      }
+    } else {
+      // Regular text response
+      stopTypingIndicator(groupId);
+      await sendGroupMessage(groupId, fullResponse);
+    }
 
     // Save bot's response to DB for conversation continuity
     const botJidNum = getBotJid()?.split('@')[0]?.split(':')[0] || BOT_PHONE_NUMBER || 'bot';
@@ -510,7 +538,7 @@ async function handleAsk(
       chat_name: null,
       sender_name: 'Echo',
       sender_number: botJidNum,
-      message_type: 'text',
+      message_type: useVoice ? 'voice' : 'text',
       body: fullResponse,
       timestamp: Math.floor(Date.now() / 1000),
       from_me: true,
@@ -679,4 +707,32 @@ function isAdmin(senderJid: string): boolean {
   // Extract the number/id part before @ and before :
   const phone = senderJid.split('@')[0].split(':')[0];
   return ADMIN_NUMBERS.has(phone);
+}
+
+// =====================
+// Voice Request Detection
+// =====================
+
+/** Keywords that trigger a voice note response (matched anywhere in the message) */
+const VOICE_KEYWORDS = ['!voice', '!say', 'תגיד', 'אמור', 'תקריא', 'בקול'];
+
+/**
+ * Check if a message requests a voice note response.
+ * Keywords can appear anywhere in the message (not just as a prefix).
+ */
+function isVoiceRequest(body: string): boolean {
+  const lower = body.toLowerCase();
+  return VOICE_KEYWORDS.some(kw => lower.includes(kw));
+}
+
+/**
+ * Strip voice keywords from the message so the AI gets a clean question.
+ * e.g. "אקו תגיד מה דעתך על פיצה" → "מה דעתך על פיצה"
+ */
+function stripVoiceKeywords(body: string): string {
+  let cleaned = body;
+  for (const kw of VOICE_KEYWORDS) {
+    cleaned = cleaned.replace(new RegExp(kw, 'gi'), '');
+  }
+  return cleaned.trim();
 }

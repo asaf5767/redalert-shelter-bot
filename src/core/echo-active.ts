@@ -16,7 +16,8 @@ import { IncomingMessage } from '../types';
 import { ECHO_ACTIVE_MODE, BOT_PHONE_NUMBER } from '../config';
 import { shouldEchoEngage, askAI, isAIEnabled, extractReactionEmoji } from '../services/ai';
 import { getConversationHistory, saveMessage } from '../services/supabase';
-import { sendGroupMessage, getBotJid, sendTypingIndicator } from '../services/whatsapp';
+import { textToVoiceNote, cleanupVoiceNote } from '../services/tts';
+import { sendGroupMessage, getBotJid, sendTypingIndicator, sendRecordingIndicator, sendVoiceNote } from '../services/whatsapp';
 import { getGroupConfig } from './group-config';
 import { createLogger } from '../utils/logger';
 
@@ -354,7 +355,22 @@ async function generateAndSendActiveResponse(
   const { text } = extractReactionEmoji(response);
   const fullResponse = `🤖 ${text}`;
 
-  await sendGroupMessage(groupId, fullResponse);
+  // 10% chance of sending as a voice note for active participation
+  const useVoice = Math.random() < 0.10;
+
+  if (useVoice) {
+    await sendRecordingIndicator(groupId);
+    const oggPath = await textToVoiceNote(text);
+    if (oggPath) {
+      await sendVoiceNote(groupId, oggPath);
+      cleanupVoiceNote(oggPath);
+    } else {
+      // TTS failed — fall back to text
+      await sendGroupMessage(groupId, fullResponse);
+    }
+  } else {
+    await sendGroupMessage(groupId, fullResponse);
+  }
 
   // Save to DB for conversation continuity
   const botJidNum = getBotJid()?.split('@')[0]?.split(':')[0] || BOT_PHONE_NUMBER || 'bot';
