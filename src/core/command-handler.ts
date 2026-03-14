@@ -471,11 +471,11 @@ async function handleAsk(
 
   // Instantly react to acknowledge the message
   if (messageKey) {
-    reactToMessage(messageKey, '👀');
+    await reactToMessage(messageKey, '👀');
   }
 
-  // Show typing indicator while AI thinks
-  sendTypingIndicator(groupId);
+  // Show typing indicator while AI thinks (after reaction so it doesn't get cancelled)
+  await sendTypingIndicator(groupId);
 
   try {
     // Build bot number list for identifying bot messages in history

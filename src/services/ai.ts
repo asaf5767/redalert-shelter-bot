@@ -189,9 +189,10 @@ export async function askAI(
   // 1. Try Claude Sonnet 4.6
   if (ANTHROPIC_API_KEY) {
     try {
-      const text = await callClaude(userMessages, SYSTEM_PROMPT);
-      log.info({ chars: text.length, model: CLAUDE_MODEL }, 'Got Claude response');
-      return `${text}\n_(Claude Sonnet)_`;
+      const raw = await callClaude(userMessages, SYSTEM_PROMPT);
+      log.info({ chars: raw.length, model: CLAUDE_MODEL }, 'Got Claude response');
+      const { text, emoji } = extractReactionEmoji(raw);
+      return `${text}\n_(Claude Sonnet)_\n[REACT:${emoji}]`;
     } catch (err) {
       log.warn({ err }, 'Claude failed, falling back to Groq');
     }
@@ -200,17 +201,19 @@ export async function askAI(
   // 2. Try Groq primary
   if (GROQ_API_KEY) {
     try {
-      const text = await callGroqModel(groqMessages, GROQ_PRIMARY_MODEL);
-      log.info({ chars: text.length, model: GROQ_PRIMARY_MODEL }, 'Got Groq response');
-      return `${text}\n_(Groq)_`;
+      const raw = await callGroqModel(groqMessages, GROQ_PRIMARY_MODEL);
+      log.info({ chars: raw.length, model: GROQ_PRIMARY_MODEL }, 'Got Groq response');
+      const { text, emoji } = extractReactionEmoji(raw);
+      return `${text}\n_(Groq)_\n[REACT:${emoji}]`;
     } catch (err) {
       log.warn({ err, model: GROQ_PRIMARY_MODEL }, 'Groq primary failed, trying fallback');
     }
 
     // 3. Try Groq fallback
-    const text = await callGroqModel(groqMessages, GROQ_FALLBACK_MODEL);
-    log.info({ chars: text.length, model: GROQ_FALLBACK_MODEL }, 'Got Groq fallback response');
-    return `${text}\n_(Groq)_`;
+    const raw = await callGroqModel(groqMessages, GROQ_FALLBACK_MODEL);
+    log.info({ chars: raw.length, model: GROQ_FALLBACK_MODEL }, 'Got Groq fallback response');
+    const { text, emoji } = extractReactionEmoji(raw);
+    return `${text}\n_(Groq)_\n[REACT:${emoji}]`;
   }
 
   throw new Error('No AI provider available — set ANTHROPIC_API_KEY or GROQ_API_KEY');
