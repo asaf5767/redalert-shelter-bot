@@ -55,6 +55,13 @@ const MESSAGE_DEDUP_TTL_MS = 60_000; // 60 seconds
 // subsequent messages without senderPn still get routed to the correct phone-JID entry.
 const lidToPhoneMap = new Map<string, string>(); // lid_number → phone_number (digits only)
 
+// Store outgoing messages so Baileys can resend them on retry requests.
+// When a recipient fails to decrypt a message, WhatsApp asks the sender to re-encrypt
+// and resend. Without this store, getMessage returns undefined and the retry silently fails,
+// causing "failed to decrypt message" errors on the other end.
+const sentMessageStore = new Map<string, { message: any; timestamp: number }>();
+const SENT_MSG_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 // =====================
 // Connection
 // =====================
@@ -131,13 +138,21 @@ export async function connectToWhatsApp(
       keys: cachedKeys,
     },
     generateHighQualityLinkPreview: false,
-    getMessage: async () => undefined, // Required by Baileys for message retries
+    getMessage: async (key) => {
+      const entry = sentMessageStore.get(key.id!);
+      if (entry) {
+        log.debug({ msgId: key.id }, 'getMessage: returning stored message for retry');
+        return entry.message;
+      }
+      log.debug({ msgId: key.id }, 'getMessage: message not found in store');
+      return undefined;
+    },
     // Stability settings (learned from production usage)
     syncFullHistory: false,
     markOnlineOnConnect: false, // Prevents "440 session conflict" errors
     fireInitQueries: false, // Reduces connection errors
     shouldIgnoreJid: (jid: string) => jid?.endsWith('@broadcast'),
-    retryRequestDelayMs: 5000,
+    retryRequestDelayMs: 250,
     connectTimeoutMs: 120000,
     keepAliveIntervalMs: 25000,
     qrTimeout: 120000,
@@ -370,7 +385,14 @@ export async function sendGroupMessage(
   }
 
   try {
-    await sock.sendMessage(groupId, { text });
+    const sent = await sock.sendMessage(groupId, { text });
+
+    // Store sent message so Baileys can resend on retry requests
+    if (sent?.key?.id && sent.message) {
+      sentMessageStore.set(sent.key.id, { message: sent.message, timestamp: Date.now() });
+      cleanupSentMessageStore();
+    }
+
     log.info({ groupId, textLength: text.length }, 'Message sent to group');
     return true;
   } catch (err) {
@@ -399,7 +421,13 @@ async function flushPendingMessages(): Promise<void> {
   for (const msg of toSend) {
     try {
       if (sock && isConnected) {
-        await sock.sendMessage(msg.groupId, { text: msg.text });
+        const sent = await sock.sendMessage(msg.groupId, { text: msg.text });
+
+        // Store sent message so Baileys can resend on retry requests
+        if (sent?.key?.id && sent.message) {
+          sentMessageStore.set(sent.key.id, { message: sent.message, timestamp: Date.now() });
+        }
+
         log.info({ groupId: msg.groupId }, 'Queued message sent');
       }
     } catch (err) {
@@ -470,6 +498,19 @@ function getQuotedParticipant(message: WAMessage): string | undefined {
 /** Check if WhatsApp is currently connected */
 export function isWhatsAppConnected(): boolean {
   return isConnected;
+}
+
+/**
+ * Evict expired entries from the sent message store.
+ * Called after storing a new message to keep memory bounded.
+ */
+function cleanupSentMessageStore(): void {
+  if (sentMessageStore.size > 200) {
+    const now = Date.now();
+    for (const [id, entry] of sentMessageStore) {
+      if (now - entry.timestamp > SENT_MSG_TTL_MS) sentMessageStore.delete(id);
+    }
+  }
 }
 
 /**
