@@ -576,3 +576,50 @@ export async function stopTypingIndicator(chatId: string): Promise<void> {
     // Non-fatal — don't break the flow
   }
 }
+
+/**
+ * Show "recording audio..." indicator in a chat.
+ * Non-fatal — silently fails if connection is down.
+ */
+export async function sendRecordingIndicator(chatId: string): Promise<void> {
+  if (!sock || !isConnected) return;
+  try {
+    await sock.sendPresenceUpdate('recording', chatId);
+  } catch {
+    // Non-fatal — don't break the flow
+  }
+}
+
+/**
+ * Send an audio file as a voice note (push-to-talk) in a WhatsApp chat.
+ * The file must be in OGG/Opus format.
+ */
+export async function sendVoiceNote(
+  chatId: string,
+  oggPath: string
+): Promise<boolean> {
+  if (!sock || !isConnected) {
+    log.warn({ chatId }, 'WhatsApp not connected - cannot send voice note');
+    return false;
+  }
+
+  try {
+    const sent = await sock.sendMessage(chatId, {
+      audio: { url: oggPath },
+      ptt: true,
+      mimetype: 'audio/ogg; codecs=opus',
+    });
+
+    // Store sent message for retry requests (same as text messages)
+    if (sent?.key?.id && sent.message) {
+      sentMessageStore.set(sent.key.id, { message: sent.message, timestamp: Date.now() });
+      cleanupSentMessageStore();
+    }
+
+    log.info({ chatId }, 'Voice note sent');
+    return true;
+  } catch (err) {
+    log.error({ err, chatId }, 'Failed to send voice note');
+    return false;
+  }
+}
