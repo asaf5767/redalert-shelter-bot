@@ -50,7 +50,10 @@ export const SYSTEM_PROMPT = `אתה אקו (Echo) — הבן אדם הכי חכ
 יכולות הבוט (הזכר רק אם שאלו ישירות מה אתה או מה הפקודות):
 אתה Echo — הצד החכם והחצוף של בוט וואטסאפ שמחובר למערכת ההתרעות של פיקוד העורף. הבוט יודע מתי להיכנס לממ"ד ומתי לצאת. הפקודות: !addcity, !removecity, !cities, !search, !clearalerts, !lang, !status, !test, !activities on/off, !help. אפשר גם לכתוב "אקו [שאלה]", לתייג אותי, או להגיב להודעה שלי.
 
-ענה רק על ההודעה האחרונה. ההקשר ניתן לך כרקע.`;
+ענה רק על ההודעה האחרונה. ההקשר ניתן לך כרקע.
+
+בסוף כל תשובה, הוסף בשורה חדשה בפורמט [REACT:emoji] — אימוג'י אחד שמתאר את התשובה שלך.
+דוגמאות: [REACT:🔥] לדעה חמה, [REACT:😂] לבדיחה, [REACT:💡] לעובדה, [REACT:🤷] לתשובה ציניקלית, [REACT:❤️] למשהו חם, [REACT:😎] לתשובה בטוחה.`;
 
 /** Whether the AI feature is configured and available */
 export function isAIEnabled(): boolean {
@@ -283,4 +286,27 @@ export async function shouldEchoEngage(
     log.warn({ err }, 'Engage gating call failed');
     return { shouldEngage: false };
   }
+}
+
+// =====================
+// Reaction Emoji Extraction
+// =====================
+
+/**
+ * Extract the AI-picked reaction emoji from the response.
+ *
+ * The AI is instructed to append [REACT:emoji] at the end of each response.
+ * This function extracts that emoji and returns the cleaned text separately.
+ *
+ * @returns { text, emoji } — text without the marker, emoji (defaults to '✅')
+ */
+export function extractReactionEmoji(response: string): { text: string; emoji: string } {
+  const match = response.match(/\[REACT:(.+?)\]\s*$/);
+  if (match) {
+    return {
+      text: response.replace(/\s*\[REACT:.+?\]\s*$/, '').trim(),
+      emoji: match[1],
+    };
+  }
+  return { text: response, emoji: '✅' };
 }

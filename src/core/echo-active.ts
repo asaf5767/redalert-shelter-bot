@@ -14,9 +14,9 @@
 
 import { IncomingMessage } from '../types';
 import { ECHO_ACTIVE_MODE, BOT_PHONE_NUMBER } from '../config';
-import { shouldEchoEngage, askAI, isAIEnabled } from '../services/ai';
+import { shouldEchoEngage, askAI, isAIEnabled, extractReactionEmoji } from '../services/ai';
 import { getConversationHistory, saveMessage } from '../services/supabase';
-import { sendGroupMessage, getBotJid } from '../services/whatsapp';
+import { sendGroupMessage, getBotJid, sendTypingIndicator } from '../services/whatsapp';
 import { getGroupConfig } from './group-config';
 import { createLogger } from '../utils/logger';
 
@@ -347,8 +347,12 @@ async function generateAndSendActiveResponse(
     prompt = `${angleInstruction}\nאתה קופץ לשיחה בעצמך — אף אחד לא שאל אותך. תהיה טבעי ולא תגיד "ראיתי שדיברתם על..." — פשוט תכנס ישר.`;
   }
 
+  // Show typing indicator while AI generates the response
+  sendTypingIndicator(groupId);
+
   const response = await askAI(prompt, history);
-  const fullResponse = `🤖 ${response}`;
+  const { text } = extractReactionEmoji(response);
+  const fullResponse = `🤖 ${text}`;
 
   await sendGroupMessage(groupId, fullResponse);
 
