@@ -1,15 +1,18 @@
 /**
- * AI Service - Claude Sonnet 4.6 (primary) + Groq (fallback)
+ * AI Service - Claude Sonnet 4.6 (primary) + Gemini 2.5 Flash + Groq (fallback)
  *
  * Provides Echo's AI personality via the !ask command and natural triggers.
  * Primary: Claude Sonnet 4.6 via Anthropic API (set ANTHROPIC_API_KEY).
- * Fallback: Groq Llama models if Claude fails or key is absent (set GROQ_API_KEY).
+ * Secondary: Gemini 2.5 Flash via Google AI Studio (set GEMINI_API_KEY).
+ * Fallback: Groq models if both Claude and Gemini fail (set GROQ_API_KEY).
  *
- * Set ANTHROPIC_API_KEY in Railway env vars to enable Claude.
- * Get a key at: https://console.anthropic.com
+ * Set keys in Railway env vars:
+ *   ANTHROPIC_API_KEY — https://console.anthropic.com
+ *   GEMINI_API_KEY    — https://aistudio.google.com
+ *   GROQ_API_KEY      — https://console.groq.com
  */
 
-import { ANTHROPIC_API_KEY, GROQ_API_KEY } from '../config';
+import { ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY } from '../config';
 import { ConversationMessage } from './supabase';
 import { createLogger } from '../utils/logger';
 
@@ -22,6 +25,10 @@ const CLAUDE_MODEL = 'claude-sonnet-4-6';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_PRIMARY_MODEL = 'openai/gpt-oss-120b';
 const GROQ_FALLBACK_MODEL = 'llama-3.3-70b-versatile';
+
+// Gemini API (Secondary fallback — OpenAI-compatible endpoint)
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 export const SYSTEM_PROMPT = `אתה אקו (Echo) — הבן אדם הכי חכם בקבוצת וואטסאפ ישראלית, ואתה יודע את זה.
 
@@ -57,7 +64,7 @@ export const SYSTEM_PROMPT = `אתה אקו (Echo) — הבן אדם הכי חכ
 
 /** Whether the AI feature is configured and available */
 export function isAIEnabled(): boolean {
-  return Boolean(ANTHROPIC_API_KEY || GROQ_API_KEY);
+  return Boolean(ANTHROPIC_API_KEY || GEMINI_API_KEY || GROQ_API_KEY);
 }
 
 interface AnthropicResponse {
@@ -141,6 +148,39 @@ async function callGroqModel(
 }
 
 /**
+ * Call Gemini via Google's OpenAI-compatible endpoint.
+ * Same request/response format as Groq (OpenAI chat completions).
+ */
+async function callGemini(
+  messages: Array<{ role: string; content: string }>
+): Promise<string> {
+  const response = await fetch(GEMINI_API_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${GEMINI_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: GEMINI_MODEL,
+      messages,
+      max_tokens: 500,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini ${GEMINI_MODEL} error ${response.status}: ${errorText}`);
+  }
+
+  const data = (await response.json()) as GroqResponse;
+  if (!data.choices || data.choices.length === 0) {
+    throw new Error(`Gemini ${GEMINI_MODEL}: no choices in response`);
+  }
+
+  return data.choices[0].message.content.trim();
+}
+
+/**
  * Format conversation history as a context block for the user message.
  */
 function formatHistoryContext(history: ConversationMessage[]): string {
@@ -192,31 +232,43 @@ export async function askAI(
       const raw = await callClaude(userMessages, SYSTEM_PROMPT);
       log.info({ chars: raw.length, model: CLAUDE_MODEL }, 'Got Claude response');
       const { text, emoji } = extractReactionEmoji(raw);
-      return `${text}\n_(Claude Sonnet)_\n[REACT:${emoji}]`;
+      return `${text}\n_(${CLAUDE_MODEL})_\n[REACT:${emoji}]`;
     } catch (err) {
-      log.warn({ err }, 'Claude failed, falling back to Groq');
+      log.warn({ err }, 'Claude failed, falling back to Gemini');
     }
   }
 
-  // 2. Try Groq primary
+  // 2. Try Gemini 2.5 Flash
+  if (GEMINI_API_KEY) {
+    try {
+      const raw = await callGemini(groqMessages);
+      log.info({ chars: raw.length, model: GEMINI_MODEL }, 'Got Gemini response');
+      const { text, emoji } = extractReactionEmoji(raw);
+      return `${text}\n_(${GEMINI_MODEL})_\n[REACT:${emoji}]`;
+    } catch (err) {
+      log.warn({ err }, 'Gemini failed, falling back to Groq');
+    }
+  }
+
+  // 3. Try Groq primary
   if (GROQ_API_KEY) {
     try {
       const raw = await callGroqModel(groqMessages, GROQ_PRIMARY_MODEL);
       log.info({ chars: raw.length, model: GROQ_PRIMARY_MODEL }, 'Got Groq response');
       const { text, emoji } = extractReactionEmoji(raw);
-      return `${text}\n_(Groq)_\n[REACT:${emoji}]`;
+      return `${text}\n_(${GROQ_PRIMARY_MODEL})_\n[REACT:${emoji}]`;
     } catch (err) {
       log.warn({ err, model: GROQ_PRIMARY_MODEL }, 'Groq primary failed, trying fallback');
     }
 
-    // 3. Try Groq fallback
+    // 4. Try Groq fallback
     const raw = await callGroqModel(groqMessages, GROQ_FALLBACK_MODEL);
     log.info({ chars: raw.length, model: GROQ_FALLBACK_MODEL }, 'Got Groq fallback response');
     const { text, emoji } = extractReactionEmoji(raw);
-    return `${text}\n_(Groq)_\n[REACT:${emoji}]`;
+    return `${text}\n_(${GROQ_FALLBACK_MODEL})_\n[REACT:${emoji}]`;
   }
 
-  throw new Error('No AI provider available — set ANTHROPIC_API_KEY or GROQ_API_KEY');
+  throw new Error('No AI provider available — set ANTHROPIC_API_KEY, GEMINI_API_KEY, or GROQ_API_KEY');
 }
 
 // =====================
