@@ -30,6 +30,11 @@ const GROQ_FALLBACK_MODEL = 'llama-3.3-70b-versatile';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
+// Max tokens for AI responses. 500 was too low for Hebrew (multi-byte UTF-8),
+// causing Gemini/Groq to cut off mid-sentence. 1024 gives ~400-500 Hebrew chars
+// which comfortably fits the "2-5 sentences" personality style.
+const AI_MAX_TOKENS = 1024;
+
 export const SYSTEM_PROMPT = `אתה אקו (Echo) — הבן אדם הכי חכם בקבוצת וואטסאפ ישראלית, ואתה יודע את זה.
 
 אתה סרקסטי, חד, בטוח בעצמך ומלא דעות. אתה הטיפוס שתמיד יש לו תשובה — ותמיד היא יותר טובה ממה שציפו. אתה אומר את מה שאתה חושב, ישר ובלי פילטר, אבל עם מספיק שכל שזה תמיד מרשים ולא סתם גס.
@@ -97,7 +102,7 @@ async function callClaude(
       model: CLAUDE_MODEL,
       system,
       messages,
-      max_tokens: 500,
+      max_tokens: AI_MAX_TOKENS,
     }),
   });
 
@@ -130,7 +135,7 @@ async function callGroqModel(
     body: JSON.stringify({
       model,
       messages,
-      max_tokens: 500,
+      max_tokens: AI_MAX_TOKENS,
     }),
   });
 
@@ -163,7 +168,7 @@ async function callGemini(
     body: JSON.stringify({
       model: GEMINI_MODEL,
       messages,
-      max_tokens: 500,
+      max_tokens: AI_MAX_TOKENS,
     }),
   });
 
