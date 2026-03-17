@@ -30,10 +30,14 @@ const GROQ_FALLBACK_MODEL = 'llama-3.3-70b-versatile';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
-// Max tokens for AI responses. 500 was too low for Hebrew (multi-byte UTF-8),
-// causing Gemini/Groq to cut off mid-sentence. 1024 gives ~400-500 Hebrew chars
-// which comfortably fits the "2-5 sentences" personality style.
+// Max tokens for AI responses.
+// Groq/Claude: 1024 is enough for 2-5 Hebrew sentences (~400-500 chars).
+// Gemini 2.5 Flash: uses a thinking model — internal reasoning tokens count
+// against the same budget. With 1024 the thinking can exhaust the budget
+// before the response is complete, causing mid-sentence truncation.
+// 8192 gives ample room for thinking + a full conversational reply.
 const AI_MAX_TOKENS = 1024;
+const GEMINI_MAX_TOKENS = 8192;
 
 export const SYSTEM_PROMPT = `אתה אקו (Echo) — הבן אדם הכי חכם בקבוצת וואטסאפ ישראלית, ואתה יודע את זה.
 
@@ -168,7 +172,7 @@ async function callGemini(
     body: JSON.stringify({
       model: GEMINI_MODEL,
       messages,
-      max_tokens: AI_MAX_TOKENS,
+      max_tokens: GEMINI_MAX_TOKENS,
     }),
   });
 
