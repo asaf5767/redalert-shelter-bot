@@ -202,8 +202,8 @@ async function handleAddCity(
   if (!args) {
     const hint =
       lang === 'he'
-        ? '❌ אממ... ערים? צריך לפחות שם של עיר אחת. דוגמה: *!addcity תל אביב, חיפה*'
-        : '❌ Uh... cities? Need at least one city name. Example: *!addcity Tel Aviv, Haifa*';
+        ? '❌ נדרש שם עיר. דוגמה: *!addcity תל אביב, חיפה*'
+        : '❌ Please provide at least one city name. Example: *!addcity Tel Aviv, Haifa*';
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -217,8 +217,8 @@ async function handleAddCity(
   if (cities.length === 0) {
     const hint =
       lang === 'he'
-        ? '❌ לפחות עיר אחת, לא? אני לא קורא מחשבות. עדיין.'
-        : '❌ At least one city, no? I don\'t read minds. Yet.';
+        ? '❌ נדרש שם עיר לפחות אחד.'
+        : '❌ At least one city name is required.';
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -265,8 +265,8 @@ async function handleAddCity(
   } else {
     const msg =
       lang === 'he'
-        ? '✅ כבר עוקב. אני לא שוכח, בניגוד אליכם 😏'
-        : '✅ Already watching those. I don\'t forget, unlike some of you 😏';
+        ? '✅ הערים האלה כבר במעקב.'
+        : '✅ Already watching those cities.';
     await sendGroupMessage(groupId, msg);
   }
 }
@@ -301,8 +301,8 @@ async function handleRemoveCity(
   } else {
     const msg =
       lang === 'he'
-        ? '❌ הערים האלה לא ברשימה שלי. אי אפשר להוריד מה שלא קיים, גאונים'
-        : '❌ Those cities aren\'t on my list. Can\'t remove what doesn\'t exist, geniuses';
+        ? '❌ הערים האלה לא נמצאות ברשימה.'
+        : '❌ Those cities aren\'t on the monitoring list.';
     await sendGroupMessage(groupId, msg);
   }
 }
@@ -345,8 +345,8 @@ async function handleSearch(
   if (!args) {
     const hint =
       lang === 'he'
-        ? `❌ מה לחפש? תנו לי רמז. דוגמה: *!search ראש*\n📊 ${getCityCount()} ערים במאגר, אמצא כל אחת`
-        : `❌ Search for what? Give me a hint. Example: *!search rosh*\n📊 ${getCityCount()} cities in database, I'll find any of them`;
+        ? `❌ נדרש טקסט לחיפוש. דוגמה: *!search ראש*\n📊 ${getCityCount()} ערים במאגר`
+        : `❌ Please provide a search term. Example: *!search rosh*\n📊 ${getCityCount()} cities in database`;
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -356,8 +356,8 @@ async function handleSearch(
   if (results.length === 0) {
     const msg =
       lang === 'he'
-        ? `❌ "${args}"? לא מצאתי כלום. בטוחים שזו עיר אמיתית?`
-        : `❌ "${args}"? Found nothing. You sure that\'s a real city?`;
+        ? `❌ לא נמצאו תוצאות עבור "${args}".`
+        : `❌ No results found for "${args}".`;
     await sendGroupMessage(groupId, msg);
     return;
   }
@@ -470,8 +470,8 @@ async function handleAsk(
   if (!aiQuestion) {
     const hint =
       lang === 'he'
-        ? '🤖 קראת לי? אז תשאל משהו. דוגמה: *אקו כמה זמן נשארים במרחב מוגן?*'
-        : '🤖 You called? Then ask something. Example: *echo how long should I stay in the shelter?*';
+        ? '🤖 שלחו שאלה. דוגמה: *אקו כמה זמן נשארים במרחב מוגן?*'
+        : '🤖 Please ask a question. Example: *echo how long should I stay in the shelter?*';
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -556,8 +556,8 @@ async function handleAsk(
 
     const errMsg =
       lang === 'he'
-        ? '❌ המוח שלי תקוע רגע. נסו שוב, אני בדרך כלל גאון'
-        : '❌ Brain freeze. Try again, I\'m usually a genius';
+        ? '❌ אירעה שגיאה. נסו שוב.'
+        : '❌ An error occurred. Please try again.';
     await sendGroupMessage(groupId, errMsg);
   }
 }
