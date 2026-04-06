@@ -9,6 +9,104 @@
 import { RedAlertEvent } from '../types';
 
 // =====================
+// Sefirat HaOmer
+// =====================
+
+/** Gregorian dates (in Israel timezone) when Omer Day 1 reminder should fire */
+const OMER_START_DATES: Record<number, string> = {
+  2026: '2026-04-02',
+  2027: '2027-04-21',
+  2028: '2028-04-09',
+  2029: '2029-03-29',
+  2030: '2030-04-17',
+};
+
+/** Hebrew words for remaining days (1–6) after subtracting full weeks */
+const OMER_DAY_WORDS: Record<number, string> = {
+  1: 'יום אחד',
+  2: 'שני ימים',
+  3: 'שלושה ימים',
+  4: 'ארבעה ימים',
+  5: 'חמישה ימים',
+  6: 'שישה ימים',
+};
+
+/** Hebrew words for exact weeks (1–7) */
+const OMER_WEEK_WORDS: Record<number, string> = {
+  1: 'שבוע אחד',
+  2: 'שני שבועות',
+  3: 'שלושה שבועות',
+  4: 'ארבעה שבועות',
+  5: 'חמישה שבועות',
+  6: 'שישה שבועות',
+  7: 'שבעה שבועות',
+};
+
+/**
+ * Return which day of the Omer it is today in Israel (1–49), or null if
+ * we're outside the Omer period or the year is not in the calendar.
+ */
+export function getOmerDay(): number | null {
+  const israelDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+  const year = parseInt(israelDateStr.split('-')[0], 10);
+  const startDate = OMER_START_DATES[year];
+  if (!startDate) return null;
+
+  const start = new Date(startDate + 'T00:00:00');
+  const today = new Date(israelDateStr + 'T00:00:00');
+  const diffDays = Math.round((today.getTime() - start.getTime()) / 86_400_000);
+
+  if (diffDays < 0 || diffDays >= 49) return null;
+  return diffDays + 1;
+}
+
+/**
+ * Return the "שהם..." breakdown clause for a given Omer day, e.g.:
+ *   day  1 → ""                          (no breakdown for days 1–6)
+ *   day  7 → "שהם שבוע אחד"
+ *   day 22 → "שהם 3 שבועות ויום אחד"
+ *   day 37 → "שהם 5 שבועות ושני ימים"
+ *   day 49 → "שהם שבעה שבועות"
+ */
+export function getOmerBreakdown(day: number): string {
+  const weeks = Math.floor(day / 7);
+  const rem = day % 7;
+  if (weeks === 0) return '';
+  // Exact weeks: always use Hebrew word (e.g. "שבוע אחד", "שני שבועות")
+  if (rem === 0) return `שהם ${OMER_WEEK_WORDS[weeks]}`;
+  // Mixed: week 1 must use "שבוע אחד" (Hebrew grammar — "1 שבועות" is wrong);
+  //        weeks 2+ use the numeric digit (matches user-spec examples: "3 שבועות", "5 שבועות")
+  const weekPart = weeks === 1 ? OMER_WEEK_WORDS[1] : `${weeks} שבועות`;
+  return `שהם ${weekPart} ו${OMER_DAY_WORDS[rem]}`;
+}
+
+/**
+ * Build the daily Sefirat HaOmer reminder message sent at 8pm.
+ * Example Hebrew output for day 22:
+ *   📿 *ספירת העומר – יום 22*
+ *   _"היום 22 יום לעומר שהם 3 שבועות ויום אחד"_
+ *   (22 מתוך 49) 🌙
+ */
+export function buildOmerReminderMessage(day: number, lang: 'he' | 'en'): string {
+  if (lang === 'en') {
+    const weeks = Math.floor(day / 7);
+    const rem = day % 7;
+    const breakdown =
+      weeks > 0
+        ? ` (${weeks} week${weeks > 1 ? 's' : ''}${rem > 0 ? ` and ${rem} day${rem > 1 ? 's' : ''}` : ''})`
+        : '';
+    return `📿 *Sefirat HaOmer – Day ${day}*\n\nTonight we count day ${day} of 49${breakdown} 🌙`;
+  }
+
+  const breakdown = getOmerBreakdown(day);
+  const countLine = breakdown
+    ? `היום ${day} יום לעומר ${breakdown}`
+    : `היום ${day} ${day === 1 ? 'יום' : 'ימים'} לעומר`;
+
+  return `📿 *ספירת העומר – יום ${day}*\n\n_"${countLine}"_\n\n(${day} מתוך 49) 🌙`;
+}
+
+// =====================
 // Shelter Time Entertainment
 // =====================
 
@@ -462,6 +560,7 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!status* — לבדוק מצב חיבור
 *!test* — בדיקת תפקוד
 *!activities* on/off — אתגרים בממ"ד לעבור את הזמן 🎮
+*!omer* on/off — תזכורת ספירת העומר בכל ערב ב-20:00 📿
 *!ask* שאלה — לשאול שאלה 🤖
 *אקו* שאלה — אותו דבר, רק יותר טבעי 😎
 *!help* — הצגת הפקודות
@@ -478,6 +577,7 @@ export function msgHelp(language: 'he' | 'en'): string {
 *!status* — Check connection status
 *!test* — Test bot functionality
 *!activities* on/off — Shelter challenges to pass the time 🎮
+*!omer* on/off — Daily Sefirat HaOmer reminder at 8pm 📿
 *!ask* question — Ask a question 🤖
 *echo* question — Same thing, just more natural 😎
 *!help* — Show this list
