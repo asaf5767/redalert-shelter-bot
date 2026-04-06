@@ -307,6 +307,23 @@ export async function setActivitiesEnabled(groupId: string, enabled: boolean): P
 }
 
 // =====================
+// Omer Settings
+// =====================
+
+/**
+ * Toggle daily Sefirat HaOmer reminders for a group.
+ */
+export async function setOmerEnabled(groupId: string, enabled: boolean): Promise<void> {
+  const config = configs.get(groupId);
+  if (!config) return;
+
+  config.settings.omerEnabled = enabled;
+  configs.set(groupId, config);
+  await save(config);
+  log.info({ groupId, enabled }, 'Omer reminders updated');
+}
+
+// =====================
 // Shelter Time Tracking
 // =====================
 

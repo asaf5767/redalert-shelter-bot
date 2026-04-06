@@ -48,7 +48,7 @@ import { getConversationHistory, saveMessage } from '../services/supabase';
 import { textToVoiceNote, cleanupVoiceNote } from '../services/tts';
 import { createLogger } from '../utils/logger';
 import { BOT_PHONE_NUMBER } from '../config';
-import { setActivitiesEnabled } from './group-config';
+import { setActivitiesEnabled, setOmerEnabled } from './group-config';
 import { onGroupMessage } from './echo-active';
 
 const log = createLogger('commands');
@@ -177,6 +177,10 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
     case '!activities':
     case '!activity':
       await handleActivities(message.chatId, args, lang);
+      break;
+
+    case '!omer':
+      await handleOmer(message.chatId, args, lang);
       break;
 
     default:
@@ -596,6 +600,46 @@ async function handleActivities(
     : enabled
       ? `🎮 Shelter activities enabled! Next alert, I'll make sure you're not bored 😄`
       : `🎮 Shelter activities disabled. You're on your own for entertainment`;
+
+  await sendGroupMessage(groupId, msg);
+}
+
+/**
+ * !omer on/off
+ * Toggle daily Sefirat HaOmer reminders at 8pm Israel time.
+ */
+async function handleOmer(
+  groupId: string,
+  args: string,
+  lang: 'he' | 'en'
+): Promise<void> {
+  const config = groupConfig.getGroupConfig(groupId);
+  if (!config) return;
+
+  const arg = args.trim().toLowerCase();
+
+  if (arg !== 'on' && arg !== 'off') {
+    const isOn = Boolean(config.settings.omerEnabled);
+    const current = isOn ? (lang === 'he' ? 'פעיל ✅' : 'on ✅') : (lang === 'he' ? 'כבוי ❌' : 'off ❌');
+    const hint =
+      lang === 'he'
+        ? `📿 *ספירת העומר* — תזכורת יומית ב-20:00 בכל ערב בתקופת העומר.\n\nמצב נוכחי: ${current}\n\nשלחו *!omer on* להפעיל או *!omer off* לכבות.`
+        : `📿 *Sefirat HaOmer* — daily reminder at 8pm during the Omer period.\n\nCurrent: ${current}\n\nSend *!omer on* to enable or *!omer off* to disable.`;
+    await sendGroupMessage(groupId, hint);
+    return;
+  }
+
+  const enabled = arg === 'on';
+  await setOmerEnabled(groupId, enabled);
+
+  const msg =
+    lang === 'he'
+      ? enabled
+        ? `📿 סבבה! בשעה 20:00 בכל ערב בתקופת העומר אזכיר לכם לספור 🌙`
+        : `📿 אוקיי, ביטלתי את תזכורות ספירת העומר`
+      : enabled
+        ? `📿 Done! I'll remind you to count the Omer every evening at 8pm 🌙`
+        : `📿 Omer reminders turned off`;
 
   await sendGroupMessage(groupId, msg);
 }

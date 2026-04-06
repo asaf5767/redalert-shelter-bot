@@ -17,6 +17,7 @@ import { validateConfig } from './config';
 import { initSupabase } from './services/supabase';
 import { connectToWhatsApp } from './services/whatsapp';
 import { connectToRedAlert, disconnectRedAlert } from './services/redalert';
+import { scheduleOmerReminders } from './services/omer-scheduler';
 import * as groupConfig from './core/group-config';
 import { handleAlert, handleEndAlert } from './core/alert-router';
 import { handleMessage, handleGroupJoin } from './core/command-handler';
@@ -65,7 +66,10 @@ async function main(): Promise<void> {
     log.info('No group configs found. Use !addcity in a group to start monitoring.');
   }
 
-  // Step 4: Connect to WhatsApp
+  // Step 4: Start scheduled services
+  scheduleOmerReminders();
+
+  // Step 5: Connect to WhatsApp
   log.info('Connecting to WhatsApp...');
 
   await connectToWhatsApp(
