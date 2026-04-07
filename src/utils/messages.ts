@@ -47,7 +47,11 @@ const OMER_WEEK_WORDS: Record<number, string> = {
  * we're outside the Omer period or the year is not in the calendar.
  */
 export function getOmerDay(): number | null {
-  const israelDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+  const now = new Date();
+  const israelDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+  const israelTimeStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jerusalem', hour12: false });
+  const hour = parseInt(israelTimeStr.split(':')[0], 10);
+
   const year = parseInt(israelDateStr.split('-')[0], 10);
   const startDate = OMER_START_DATES[year];
   if (!startDate) return null;
@@ -56,8 +60,13 @@ export function getOmerDay(): number | null {
   const today = new Date(israelDateStr + 'T00:00:00');
   const diffDays = Math.round((today.getTime() - start.getTime()) / 86_400_000);
 
-  if (diffDays < 0 || diffDays >= 49) return null;
-  return diffDays + 1;
+  // The Jewish day begins at nightfall (~8pm Israel time).
+  // OMER_START_DATES marks the first evening of counting (Day 1).
+  // Before 8pm: still in the same Jewish day as last night's count (diffDays offset).
+  // At/after 8pm: the new day begins, advance by 1.
+  const day = diffDays + (hour >= 20 ? 1 : 0);
+  if (day < 1 || day > 49) return null;
+  return day;
 }
 
 /**

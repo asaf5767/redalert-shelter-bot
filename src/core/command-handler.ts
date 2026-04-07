@@ -42,6 +42,8 @@ import {
   msgLanguageChanged,
   msgWelcome,
   buildTestAlertMessage,
+  getOmerDay,
+  getOmerBreakdown,
 } from '../utils/messages';
 import { askAI, isAIEnabled, extractReactionEmoji } from '../services/ai';
 import { getConversationHistory, saveMessage } from '../services/supabase';
@@ -52,6 +54,38 @@ import { setActivitiesEnabled, setOmerEnabled } from './group-config';
 import { onGroupMessage } from './echo-active';
 
 const log = createLogger('commands');
+
+// =====================
+// Omer Query Helpers
+// =====================
+
+/** True if the text appears to be asking about the Sefirat HaOmer count */
+function isOmerQuery(text: string): boolean {
+  return text.includes('לעומר') || text.includes('ספירת העומר') || text.includes('כמה עומר');
+}
+
+/**
+ * If we're in the Omer period, send the deterministic "yesterday's count" hint
+ * and return true. Returns false if outside the period (caller falls through to AI).
+ */
+async function replyOmerQuery(chatId: string): Promise<boolean> {
+  const day = getOmerDay();
+  if (!day) return false;
+
+  let msg: string;
+  if (day === 1) {
+    msg = 'הלילה מתחילים לספור! יום אחד לעומר 📿';
+  } else {
+    const yesterday = day - 1;
+    const breakdown = getOmerBreakdown(yesterday);
+    const yText = breakdown
+      ? `יום ${yesterday} לעומר ${breakdown}`
+      : `${yesterday} ${yesterday === 1 ? 'יום' : 'ימים'} לעומר`;
+    msg = `בוא נגיד שאתמול היה ${yText}... 😏`;
+  }
+  await sendGroupMessage(chatId, msg);
+  return true;
+}
 
 // =====================
 // Main Handler
@@ -71,6 +105,7 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
   // Check for Echo triggers (natural language AI invocation)
   const echoQuestion = extractEchoQuestion(message);
   if (echoQuestion !== null) {
+    if (isOmerQuery(echoQuestion) && await replyOmerQuery(message.chatId)) return;
     // Auto-create group config if it doesn't exist yet
     let config = groupConfig.getGroupConfig(message.chatId);
     if (!config) {
@@ -84,6 +119,7 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
 
   // In personal chats, every non-command message is implicitly directed at the bot
   if (!message.isGroup && !body.startsWith('!')) {
+    if (isOmerQuery(body) && await replyOmerQuery(message.chatId)) return;
     let config = groupConfig.getGroupConfig(message.chatId);
     if (!config) {
       await groupConfig.approveGroup(message.chatId);
