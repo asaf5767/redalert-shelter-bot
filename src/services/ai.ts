@@ -15,7 +15,6 @@
 import { ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY } from '../config';
 import { ConversationMessage } from './supabase';
 import { createLogger } from '../utils/logger';
-import { getOmerDay, getOmerBreakdown } from '../utils/messages';
 
 const log = createLogger('ai');
 
@@ -72,29 +71,8 @@ export const SYSTEM_PROMPT = `אתה אקו (Echo) — הבן אדם הכי חכ
 בסוף כל תשובה, הוסף בשורה חדשה בפורמט [REACT:emoji] — אימוג'י אחד שמתאר את התשובה שלך.
 דוגמאות: [REACT:🔥] לדעה חמה, [REACT:😂] לבדיחה, [REACT:💡] לעובדה, [REACT:🤷] לתשובה ציניקלית, [REACT:❤️] למשהו חם, [REACT:😎] לתשובה בטוחה.`;
 
-/**
- * Build the runtime system prompt, optionally injecting the current Omer
- * day context so Echo can answer "כמה היום לעומר?" in the traditional style
- * (stating yesterday's count as a hint, not today's).
- */
 function buildSystemPrompt(): string {
-  const omerDay = getOmerDay();
-  if (!omerDay) return SYSTEM_PROMPT;
-
-  let extra = `\n\nהקשר נוכחי: היום יום ${omerDay} בספירת העומר.`;
-
-  if (omerDay === 1) {
-    extra += `\nאם שואלים אותך כמה היום לעומר, ענה בסגנון "הלילה מתחילים לספור! יום אחד לעומר 📿"`;
-  } else {
-    const yesterday = omerDay - 1;
-    const yBreakdown = getOmerBreakdown(yesterday);
-    const yText = yBreakdown
-      ? `יום ${yesterday} לעומר ${yBreakdown}`
-      : `${yesterday} ${yesterday === 1 ? 'יום' : 'ימים'} לעומר`;
-    extra += `\nאם שואלים אותך כמה היום לעומר, ענה בסגנון "בוא נגיד שאתמול היה ${yText}... 😏" — תן את הספירה של אתמול בלבד, לא של היום.`;
-  }
-
-  return SYSTEM_PROMPT + extra;
+  return SYSTEM_PROMPT;
 }
 
 /** Whether the AI feature is configured and available */
