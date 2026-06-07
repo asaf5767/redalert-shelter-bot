@@ -3,7 +3,7 @@
  *
  * Handles:
  * - Connecting to WhatsApp via Baileys (WhatsApp Web protocol)
- * - QR code display for authentication
+ * - Pairing code display (or QR fallback) for authentication
  * - Automatic reconnection with exponential backoff
  * - Sending messages to groups
  * - Listening for incoming messages
@@ -24,6 +24,7 @@ import pino from 'pino';
 import { useSupabaseAuthState, saveMessage, WhatsAppMessageRow } from './supabase';
 import { createLogger } from '../utils/logger';
 import { MessageHandler, IncomingMessage } from '../types';
+import { BOT_PHONE_NUMBER } from '../config';
 
 const log = createLogger('whatsapp');
 
@@ -71,7 +72,8 @@ const SENT_MSG_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
  *
  * This will:
  * 1. Load credentials from Supabase (or create new ones)
- * 2. Display a QR code in the terminal if needed
+ * 2. Display a pairing code in the logs if BOT_PHONE_NUMBER is set,
+ *    otherwise fall back to a QR code
  * 3. Establish the WhatsApp Web connection
  * 4. Set up auto-reconnection on disconnect
  *
@@ -133,6 +135,9 @@ export async function connectToWhatsApp(
     version,
     logger: pino({ level: 'warn' }) as any, // Show decryption errors and session warnings
     printQRInTerminal: false, // We handle QR display ourselves
+    // Required for pairing code: WhatsApp rejects the default browser id when
+    // requesting a pairing code, so we set a non-default browser triple here.
+    browser: ['Chrome (Linux)', '', ''],
     auth: {
       creds: state.creds,
       keys: cachedKeys,
@@ -160,12 +165,38 @@ export async function connectToWhatsApp(
     emitOwnEvents: false,
   });
 
+  // Request a pairing code instead of QR when not yet registered and
+  // BOT_PHONE_NUMBER is set. This avoids the unscannable-QR problem on Railway,
+  // whose log viewer mangles the block-character QR rendering. If
+  // BOT_PHONE_NUMBER is unset, we fall back to the QR display below.
+  if (!sock.authState.creds.registered && BOT_PHONE_NUMBER) {
+    // Defer briefly so the socket finishes wiring before we ask for a code.
+    setTimeout(async () => {
+      try {
+        const code = await sock!.requestPairingCode(BOT_PHONE_NUMBER);
+        const formatted = code.match(/.{1,4}/g)?.join('-') ?? code;
+        console.log('\n========================================');
+        console.log('  WhatsApp pairing code:  ' + formatted);
+        console.log('========================================');
+        console.log('  On your phone:');
+        console.log('  Settings > Linked Devices > Link a Device');
+        console.log('  > Link with phone number instead');
+        console.log('  Then enter the 8-character code above.');
+        console.log('========================================\n');
+      } catch (err) {
+        log.error({ err }, 'Failed to request pairing code');
+      }
+    }, 3000);
+  }
+
   // ---- Event: Connection State Changes ----
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    // Show QR code when needed
-    if (qr) {
+    // Show QR code only when pairing-code mode isn't available.
+    // On Railway, the log viewer mangles the QR's block characters, so we
+    // prefer the pairing-code path above whenever BOT_PHONE_NUMBER is set.
+    if (qr && !BOT_PHONE_NUMBER) {
       console.log('\n========================================');
       console.log('  Scan this QR code with WhatsApp:');
       console.log('========================================\n');
