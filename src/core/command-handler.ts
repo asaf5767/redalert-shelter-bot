@@ -42,16 +42,50 @@ import {
   msgLanguageChanged,
   msgWelcome,
   buildTestAlertMessage,
+  getOmerDay,
+  getOmerBreakdown,
 } from '../utils/messages';
 import { askAI, isAIEnabled, extractReactionEmoji } from '../services/ai';
 import { getConversationHistory, saveMessage } from '../services/supabase';
 import { textToVoiceNote, cleanupVoiceNote } from '../services/tts';
 import { createLogger } from '../utils/logger';
 import { BOT_PHONE_NUMBER } from '../config';
-import { setActivitiesEnabled } from './group-config';
+import { setActivitiesEnabled, setOmerEnabled } from './group-config';
 import { onGroupMessage } from './echo-active';
 
 const log = createLogger('commands');
+
+// =====================
+// Omer Query Helpers
+// =====================
+
+/** True if the text appears to be asking about the Sefirat HaOmer count */
+function isOmerQuery(text: string): boolean {
+  return text.includes('לעומר') || text.includes('ספירת העומר') || text.includes('כמה עומר');
+}
+
+/**
+ * If we're in the Omer period, send the deterministic "yesterday's count" hint
+ * and return true. Returns false if outside the period (caller falls through to AI).
+ */
+async function replyOmerQuery(chatId: string): Promise<boolean> {
+  const day = getOmerDay();
+  if (!day) return false;
+
+  let msg: string;
+  if (day === 1) {
+    msg = 'הלילה מתחילים לספור! יום אחד לעומר 📿';
+  } else {
+    const yesterday = day - 1;
+    const breakdown = getOmerBreakdown(yesterday);
+    const yText = breakdown
+      ? `יום ${yesterday} לעומר ${breakdown}`
+      : `${yesterday} ${yesterday === 1 ? 'יום' : 'ימים'} לעומר`;
+    msg = `בוא נגיד שאתמול היה ${yText}... 😏`;
+  }
+  await sendGroupMessage(chatId, msg);
+  return true;
+}
 
 // =====================
 // Main Handler
@@ -71,6 +105,7 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
   // Check for Echo triggers (natural language AI invocation)
   const echoQuestion = extractEchoQuestion(message);
   if (echoQuestion !== null) {
+    if (isOmerQuery(echoQuestion) && await replyOmerQuery(message.chatId)) return;
     // Auto-create group config if it doesn't exist yet
     let config = groupConfig.getGroupConfig(message.chatId);
     if (!config) {
@@ -84,6 +119,7 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
 
   // In personal chats, every non-command message is implicitly directed at the bot
   if (!message.isGroup && !body.startsWith('!')) {
+    if (isOmerQuery(body) && await replyOmerQuery(message.chatId)) return;
     let config = groupConfig.getGroupConfig(message.chatId);
     if (!config) {
       await groupConfig.approveGroup(message.chatId);
@@ -179,6 +215,10 @@ export async function handleMessage(message: IncomingMessage): Promise<void> {
       await handleActivities(message.chatId, args, lang);
       break;
 
+    case '!omer':
+      await handleOmer(message.chatId, args, lang);
+      break;
+
     default:
       // Unknown command - ignore silently
       break;
@@ -202,8 +242,8 @@ async function handleAddCity(
   if (!args) {
     const hint =
       lang === 'he'
-        ? '❌ אממ... ערים? צריך לפחות שם של עיר אחת. דוגמה: *!addcity תל אביב, חיפה*'
-        : '❌ Uh... cities? Need at least one city name. Example: *!addcity Tel Aviv, Haifa*';
+        ? '❌ נדרש שם עיר. דוגמה: *!addcity תל אביב, חיפה*'
+        : '❌ Please provide at least one city name. Example: *!addcity Tel Aviv, Haifa*';
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -217,8 +257,8 @@ async function handleAddCity(
   if (cities.length === 0) {
     const hint =
       lang === 'he'
-        ? '❌ לפחות עיר אחת, לא? אני לא קורא מחשבות. עדיין.'
-        : '❌ At least one city, no? I don\'t read minds. Yet.';
+        ? '❌ נדרש שם עיר לפחות אחד.'
+        : '❌ At least one city name is required.';
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -265,8 +305,8 @@ async function handleAddCity(
   } else {
     const msg =
       lang === 'he'
-        ? '✅ כבר עוקב. אני לא שוכח, בניגוד אליכם 😏'
-        : '✅ Already watching those. I don\'t forget, unlike some of you 😏';
+        ? '✅ הערים האלה כבר במעקב.'
+        : '✅ Already watching those cities.';
     await sendGroupMessage(groupId, msg);
   }
 }
@@ -301,8 +341,8 @@ async function handleRemoveCity(
   } else {
     const msg =
       lang === 'he'
-        ? '❌ הערים האלה לא ברשימה שלי. אי אפשר להוריד מה שלא קיים, גאונים'
-        : '❌ Those cities aren\'t on my list. Can\'t remove what doesn\'t exist, geniuses';
+        ? '❌ הערים האלה לא נמצאות ברשימה.'
+        : '❌ Those cities aren\'t on the monitoring list.';
     await sendGroupMessage(groupId, msg);
   }
 }
@@ -345,8 +385,8 @@ async function handleSearch(
   if (!args) {
     const hint =
       lang === 'he'
-        ? `❌ מה לחפש? תנו לי רמז. דוגמה: *!search ראש*\n📊 ${getCityCount()} ערים במאגר, אמצא כל אחת`
-        : `❌ Search for what? Give me a hint. Example: *!search rosh*\n📊 ${getCityCount()} cities in database, I'll find any of them`;
+        ? `❌ נדרש טקסט לחיפוש. דוגמה: *!search ראש*\n📊 ${getCityCount()} ערים במאגר`
+        : `❌ Please provide a search term. Example: *!search rosh*\n📊 ${getCityCount()} cities in database`;
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -356,8 +396,8 @@ async function handleSearch(
   if (results.length === 0) {
     const msg =
       lang === 'he'
-        ? `❌ "${args}"? לא מצאתי כלום. בטוחים שזו עיר אמיתית?`
-        : `❌ "${args}"? Found nothing. You sure that\'s a real city?`;
+        ? `❌ לא נמצאו תוצאות עבור "${args}".`
+        : `❌ No results found for "${args}".`;
     await sendGroupMessage(groupId, msg);
     return;
   }
@@ -470,8 +510,8 @@ async function handleAsk(
   if (!aiQuestion) {
     const hint =
       lang === 'he'
-        ? '🤖 קראת לי? אז תשאל משהו. דוגמה: *אקו כמה זמן נשארים במרחב מוגן?*'
-        : '🤖 You called? Then ask something. Example: *echo how long should I stay in the shelter?*';
+        ? '🤖 שלחו שאלה. דוגמה: *אקו כמה זמן נשארים במרחב מוגן?*'
+        : '🤖 Please ask a question. Example: *echo how long should I stay in the shelter?*';
     await sendGroupMessage(groupId, hint);
     return;
   }
@@ -556,8 +596,8 @@ async function handleAsk(
 
     const errMsg =
       lang === 'he'
-        ? '❌ המוח שלי תקוע רגע. נסו שוב, אני בדרך כלל גאון'
-        : '❌ Brain freeze. Try again, I\'m usually a genius';
+        ? '❌ אירעה שגיאה. נסו שוב.'
+        : '❌ An error occurred. Please try again.';
     await sendGroupMessage(groupId, errMsg);
   }
 }
@@ -596,6 +636,46 @@ async function handleActivities(
     : enabled
       ? `🎮 Shelter activities enabled! Next alert, I'll make sure you're not bored 😄`
       : `🎮 Shelter activities disabled. You're on your own for entertainment`;
+
+  await sendGroupMessage(groupId, msg);
+}
+
+/**
+ * !omer on/off
+ * Toggle daily Sefirat HaOmer reminders at 8pm Israel time.
+ */
+async function handleOmer(
+  groupId: string,
+  args: string,
+  lang: 'he' | 'en'
+): Promise<void> {
+  const config = groupConfig.getGroupConfig(groupId);
+  if (!config) return;
+
+  const arg = args.trim().toLowerCase();
+
+  if (arg !== 'on' && arg !== 'off') {
+    const isOn = Boolean(config.settings.omerEnabled);
+    const current = isOn ? (lang === 'he' ? 'פעיל ✅' : 'on ✅') : (lang === 'he' ? 'כבוי ❌' : 'off ❌');
+    const hint =
+      lang === 'he'
+        ? `📿 *ספירת העומר* — תזכורת יומית ב-20:00 בכל ערב בתקופת העומר.\n\nמצב נוכחי: ${current}\n\nשלחו *!omer on* להפעיל או *!omer off* לכבות.`
+        : `📿 *Sefirat HaOmer* — daily reminder at 8pm during the Omer period.\n\nCurrent: ${current}\n\nSend *!omer on* to enable or *!omer off* to disable.`;
+    await sendGroupMessage(groupId, hint);
+    return;
+  }
+
+  const enabled = arg === 'on';
+  await setOmerEnabled(groupId, enabled);
+
+  const msg =
+    lang === 'he'
+      ? enabled
+        ? `📿 סבבה! בשעה 20:00 בכל ערב בתקופת העומר אזכיר לכם לספור 🌙`
+        : `📿 אוקיי, ביטלתי את תזכורות ספירת העומר`
+      : enabled
+        ? `📿 Done! I'll remind you to count the Omer every evening at 8pm 🌙`
+        : `📿 Omer reminders turned off`;
 
   await sendGroupMessage(groupId, msg);
 }

@@ -9,6 +9,113 @@
 import { RedAlertEvent } from '../types';
 
 // =====================
+// Sefirat HaOmer
+// =====================
+
+/** Gregorian dates (in Israel timezone) when Omer Day 1 reminder should fire */
+const OMER_START_DATES: Record<number, string> = {
+  2026: '2026-04-02',
+  2027: '2027-04-21',
+  2028: '2028-04-09',
+  2029: '2029-03-29',
+  2030: '2030-04-17',
+};
+
+/** Hebrew words for remaining days (1–6) after subtracting full weeks */
+const OMER_DAY_WORDS: Record<number, string> = {
+  1: 'יום אחד',
+  2: 'שני ימים',
+  3: 'שלושה ימים',
+  4: 'ארבעה ימים',
+  5: 'חמישה ימים',
+  6: 'שישה ימים',
+};
+
+/** Hebrew words for exact weeks (1–7) */
+const OMER_WEEK_WORDS: Record<number, string> = {
+  1: 'שבוע אחד',
+  2: 'שני שבועות',
+  3: 'שלושה שבועות',
+  4: 'ארבעה שבועות',
+  5: 'חמישה שבועות',
+  6: 'שישה שבועות',
+  7: 'שבעה שבועות',
+};
+
+/**
+ * Return which day of the Omer it is today in Israel (1–49), or null if
+ * we're outside the Omer period or the year is not in the calendar.
+ */
+export function getOmerDay(): number | null {
+  const now = new Date();
+  const israelDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+  const israelTimeStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jerusalem', hour12: false });
+  const hour = parseInt(israelTimeStr.split(':')[0], 10);
+
+  const year = parseInt(israelDateStr.split('-')[0], 10);
+  const startDate = OMER_START_DATES[year];
+  if (!startDate) return null;
+
+  const start = new Date(startDate + 'T00:00:00');
+  const today = new Date(israelDateStr + 'T00:00:00');
+  const diffDays = Math.round((today.getTime() - start.getTime()) / 86_400_000);
+
+  // The Jewish day begins at nightfall (~8pm Israel time).
+  // OMER_START_DATES marks the first evening of counting (Day 1).
+  // Before 8pm: still in the same Jewish day as last night's count (diffDays offset).
+  // At/after 8pm: the new day begins, advance by 1.
+  const day = diffDays + (hour >= 20 ? 1 : 0);
+  if (day < 1 || day > 49) return null;
+  return day;
+}
+
+/**
+ * Return the "שהם..." breakdown clause for a given Omer day, e.g.:
+ *   day  1 → ""                          (no breakdown for days 1–6)
+ *   day  7 → "שהם שבוע אחד"
+ *   day 22 → "שהם 3 שבועות ויום אחד"
+ *   day 37 → "שהם 5 שבועות ושני ימים"
+ *   day 49 → "שהם שבעה שבועות"
+ */
+export function getOmerBreakdown(day: number): string {
+  const weeks = Math.floor(day / 7);
+  const rem = day % 7;
+  if (weeks === 0) return '';
+  // Exact weeks: always use Hebrew word (e.g. "שבוע אחד", "שני שבועות")
+  if (rem === 0) return `שהם ${OMER_WEEK_WORDS[weeks]}`;
+  // Mixed: week 1 must use "שבוע אחד" (Hebrew grammar — "1 שבועות" is wrong);
+  //        weeks 2+ use the numeric digit (matches user-spec examples: "3 שבועות", "5 שבועות")
+  const weekPart = weeks === 1 ? OMER_WEEK_WORDS[1] : `${weeks} שבועות`;
+  return `שהם ${weekPart} ו${OMER_DAY_WORDS[rem]}`;
+}
+
+/**
+ * Build the daily Sefirat HaOmer reminder message sent at 8pm.
+ * Example Hebrew output for day 22:
+ *   📿 *ספירת העומר – יום 22*
+ *   _"היום 22 יום לעומר שהם 3 שבועות ויום אחד"_
+ *   (22 מתוך 49) 🌙
+ */
+export function buildOmerReminderMessage(day: number, lang: 'he' | 'en'): string {
+  if (lang === 'en') {
+    const weeks = Math.floor(day / 7);
+    const rem = day % 7;
+    const breakdown =
+      weeks > 0
+        ? ` (${weeks} week${weeks > 1 ? 's' : ''}${rem > 0 ? ` and ${rem} day${rem > 1 ? 's' : ''}` : ''})`
+        : '';
+    return `📿 *Sefirat HaOmer – Day ${day}*\n\nTonight we count day ${day} of 49${breakdown} 🌙`;
+  }
+
+  const breakdown = getOmerBreakdown(day);
+  const countLine = breakdown
+    ? `היום ${day} יום לעומר ${breakdown}`
+    : `היום ${day} ${day === 1 ? 'יום' : 'ימים'} לעומר`;
+
+  return `📿 *ספירת העומר – יום ${day}*\n\n_"${countLine}"_\n\n(${day} מתוך 49) 🌙`;
+}
+
+// =====================
 // Shelter Time Entertainment
 // =====================
 
@@ -157,20 +264,20 @@ const ALERT_TYPE_NAMES_EN: Record<string, string> = {
 
 /** Rotating "go to shelter" lines — Hebrew */
 const ALERT_LINES_HE: string[] = [
-  'יאללה זזים לממ"ד. אני אגיד מתי אפשר לצאת, סבלנות 🙏',
-  'ממ"ד. עכשיו. אני אעדכן כשנגמר 🙏',
-  'זזים למקלט, אני שומר לכם על המקום בחוץ 🙏',
-  'היכנסו לממ"ד, אני אודיע כשזה נגמר. לא, אי אפשר לחכות 🙏',
-  'ממ"ד, יאללה. אני עוקב ואעדכן בזמן אמת 🙏',
+  'היכנסו למרחב המוגן. אעדכן ברגע שניתן לצאת 🙏',
+  'מרחב מוגן עכשיו. אעדכן כשהאזעקה תסתיים 🙏',
+  'אנא היכנסו למרחב המוגן. אודיע כשהכל בסדר 🙏',
+  'היכנסו למרחב המוגן — אעקוב ואעדכן בזמן אמת 🙏',
+  'אנא עברו למרחב מוגן. אעדכן בהקדם 🙏',
 ];
 
 /** Rotating "go to shelter" lines — English */
 const ALERT_LINES_EN: string[] = [
-  'Get to your safe room. I\'ll tell you when the party\'s over 🙏',
-  'Safe room. Now. I\'ll update you when it\'s clear 🙏',
-  'Head to shelter, I\'ll hold down the fort out here 🙏',
-  'Get to your shelter — I\'ll let you know when it\'s done. No, you can\'t wait 🙏',
-  'Safe room, let\'s go. I\'m tracking and will update in real time 🙏',
+  'Please go to your safe room. I\'ll update you when it\'s clear 🙏',
+  'Safe room now. I\'ll notify you when the alert ends 🙏',
+  'Please head to shelter. I\'ll let you know when it\'s safe to leave 🙏',
+  'Get to your safe room — I\'m tracking and will update in real time 🙏',
+  'Please move to a safe room. I\'ll update you as soon as possible 🙏',
 ];
 
 /** Pick a random line from an array */
@@ -217,16 +324,16 @@ export function buildActivityMessage(language: 'he' | 'en'): string {
 
 /** Rotating news flash lines — Hebrew */
 const NEWS_FLASH_LINES_HE: string[] = [
-  'ייתכנו אזעקות בקרוב. לא רוצה להלחיץ, אבל כדאי שתדעו איפה הממ"ד. רק אומר.',
-  'ייתכנו אזעקות בקרוב. עכשיו זה הזמן לדעת איפה המקלט, לא באמצע.',
-  'ייתכנו אזעקות בקרוב. תהיו מוכנים. אני אעדכן ברגע שיהיה משהו.',
+  'ייתכנו אזעקות בקרוב. מומלץ לדעת היכן המרחב המוגן.',
+  'ייתכנו אזעקות בקרוב. כדאי להיות במקום נגיש למרחב מוגן.',
+  'ייתכנו אזעקות בקרוב. אעדכן ברגע שיהיה משהו.',
 ];
 
 /** Rotating news flash lines — English */
 const NEWS_FLASH_LINES_EN: string[] = [
-  'Alerts may sound shortly. Not trying to stress you out, but know where your shelter is. Just saying.',
-  'Alerts may sound shortly. Now\'s the time to locate your safe room, not during.',
-  'Alerts may sound shortly. Stay ready. I\'ll update the second something happens.',
+  'Alerts may sound shortly. It is recommended to know where your shelter is.',
+  'Alerts may sound shortly. Stay near a safe room if possible.',
+  'Alerts may sound shortly. I\'ll update you as soon as something happens.',
 ];
 
 /**
@@ -253,18 +360,18 @@ export function buildNewsFlashMessage(
 
 /** Rotating "safe to leave" lines — Hebrew */
 const END_ALERT_LINES_HE: string[] = [
-  'נגמר הקטע, אפשר לצאת. שמרו על עצמכם 💙',
-  'סיימנו. אפשר לחזור לחיים הרגילים, מה שזה לא אומר פה 💙',
-  'אפשר לצאת. עוד ביקור מוצלח בממ"ד, כולם שלמים 💙',
-  'נגמר! חזרה לשגרה. אני ממשיך לעקוב, אתם תמשיכו לחיות 💙',
+  'האזעקה הסתיימה. ניתן לצאת מהמרחב המוגן. שמרו על עצמכם 💙',
+  'סוף האזעקה. ניתן לחזור לשגרה בבטחה 💙',
+  'ניתן לצאת מהמרחב המוגן. הכל בסדר 💙',
+  'האזעקה נגמרה. אפשר לצאת. המשיכו בזהירות 💙',
 ];
 
 /** Rotating "safe to leave" lines — English */
 const END_ALERT_LINES_EN: string[] = [
-  'Show\'s over, you can come out. Stay safe 💙',
-  'All clear. Back to regular life, whatever that means around here 💙',
-  'You can leave now. Another successful shelter visit, everyone intact 💙',
-  'Done! Back to routine. I keep watching, you keep living 💙',
+  'Alert has ended. You can leave the safe room. Stay safe 💙',
+  'All clear. It\'s safe to return to normal activity 💙',
+  'You can leave the shelter now. Everything\'s okay 💙',
+  'Alert over. Safe to go out. Take care 💙',
 ];
 
 /**
@@ -385,18 +492,18 @@ export function msgCitiesAdded(cities: string[], language: 'he' | 'en'): string 
 export function msgCitiesRemoved(cities: string[], language: 'he' | 'en'): string {
   const list = cities.join(', ');
   if (language === 'he') {
-    return `✅ ${list} — הורד מהרשימה. פחות עבודה בשבילי`;
+    return `✅ ${list} — הוסר מהרשימה`;
   }
-  return `✅ ${list} — off the list. Less work for me`;
+  return `✅ ${list} — removed from the list`;
 }
 
 /** Response showing the current monitored cities */
 export function msgCitiesList(cities: string[], language: 'he' | 'en'): string {
   if (cities.length === 0) {
     if (language === 'he') {
-      return `📋 אין ערים במעקב. אני פה בטל.\nשלחו *!addcity שם עיר* ותנו לי משהו לעשות.`;
+      return `📋 אין ערים במעקב.\nשלחו *!addcity שם עיר* כדי להוסיף עיר.`;
     }
-    return `📋 No cities yet. I'm just sitting here doing nothing.\nSend *!addcity city name* and give me a purpose.`;
+    return `📋 No cities are being monitored yet.\nSend *!addcity city name* to add one.`;
   }
 
   const list = cities.map((c, i) => `${i + 1}. ${c}`).join('\n');
@@ -409,9 +516,9 @@ export function msgCitiesList(cities: string[], language: 'he' | 'en'): string {
 /** Response when all cities are cleared */
 export function msgCitiesCleared(language: 'he' | 'en'): string {
   if (language === 'he') {
-    return `✅ כל הערים הוסרו. סוף סוף חופש. שלא תתקשרו 😴`;
+    return `✅ כל הערים הוסרו.`;
   }
-  return `✅ All cities cleared. Finally, a day off. Don't call me 😴`;
+  return `✅ All cities cleared.`;
 }
 
 /** Status message showing bot connection info */
@@ -432,7 +539,7 @@ export function msgStatus(
     if (pendingMessages > 0) {
       msg += `הודעות ממתינות: ${pendingMessages}\n`;
     }
-    msg += `\n_אני ער 24/7. מישהו פה צריך להיות האחראי_ 😏`;
+    msg += `\n_פועל 24/7 ועוקב בזמן אמת._`;
     return msg;
   } else {
     const wa = whatsappConnected ? '🟢 Connected' : '🔴 Disconnected';
@@ -444,7 +551,7 @@ export function msgStatus(
     if (pendingMessages > 0) {
       msg += `Queued messages: ${pendingMessages}\n`;
     }
-    msg += `\n_I'm up 24/7. Someone here has to be the responsible one_ 😏`;
+    msg += `\n_Running 24/7, monitoring in real time._`;
     return msg;
   }
 }
@@ -452,59 +559,61 @@ export function msgStatus(
 /** Help message showing available commands */
 export function msgHelp(language: 'he' | 'en'): string {
   if (language === 'he') {
-    return `🤖 *הנה כל מה שאני יודע לעשות (וזה הרבה):*\n
+    return `🤖 *פקודות זמינות:*\n
 *!addcity* עיר1, עיר2 — להוסיף ערים למעקב
 *!removecity* עיר1 — להוריד עיר
-*!cities* — מה אני שומר עליו
-*!search* טקסט — לחפש עיר במאגר (1,449 ערים, לא חסר)
-*!clearalerts* — למחוק הכל ולשחרר אותי
+*!cities* — רשימת הערים במעקב
+*!search* טקסט — לחפש עיר במאגר (1,449 ערים)
+*!clearalerts* — למחוק את כל הערים
 *!lang* he/en — לשנות שפה
-*!status* — לבדוק שאני בסדר (אני תמיד בסדר)
-*!test* — בדיקת חיים
+*!status* — לבדוק מצב חיבור
+*!test* — בדיקת תפקוד
 *!activities* on/off — אתגרים בממ"ד לעבור את הזמן 🎮
-*!ask* שאלה — לשאול אותי כל דבר, אני יודע הכל 🤖
+*!omer* on/off — תזכורת ספירת העומר בכל ערב ב-20:00 📿
+*!ask* שאלה — לשאול שאלה 🤖
 *אקו* שאלה — אותו דבר, רק יותר טבעי 😎
-*!help* — מה שאתם קוראים עכשיו. ברור שאתם צריכים עזרה 😄
+*!help* — הצגת הפקודות
 
-💡 אפשר גם לתייג אותי או להגיב להודעה שלי. אני תמיד פה.`;
+💡 אפשר גם לתייג אותי או להגיב להודעה שלי.`;
   }
-  return `🤖 *Everything I can do (and it's a lot):*\n
+  return `🤖 *Available commands:*\n
 *!addcity* city1, city2 — Add cities to watch
 *!removecity* city1 — Remove a city
-*!cities* — What I'm guarding
-*!search* text — Search city database (1,449 cities, no shortage)
-*!clearalerts* — Clear everything and set me free
+*!cities* — List monitored cities
+*!search* text — Search city database (1,449 cities)
+*!clearalerts* — Remove all cities
 *!lang* he/en — Change language
-*!status* — Check I'm okay (I'm always okay)
-*!test* — Proof of life
+*!status* — Check connection status
+*!test* — Test bot functionality
 *!activities* on/off — Shelter challenges to pass the time 🎮
-*!ask* question — Ask me anything, I know everything 🤖
+*!omer* on/off — Daily Sefirat HaOmer reminder at 8pm 📿
+*!ask* question — Ask a question 🤖
 *echo* question — Same thing, just more natural 😎
-*!help* — What you're reading right now. Clearly you need help 😄
+*!help* — Show this list
 
-💡 You can also @mention me or reply to my message. I'm always here.`;
+💡 You can also @mention me or reply to my message.`;
 }
 
 /** Error: city not found in config */
 export function msgCityNotFound(city: string, language: 'he' | 'en'): string {
   if (language === 'he') {
-    return `❌ "${city}" לא נמצא במעקב. בטוחים שאתם יודעים לכתוב?`;
+    return `❌ "${city}" לא נמצא ברשימת הערים במעקב.`;
   }
-  return `❌ "${city}" isn't being monitored. You sure you can spell?`;
+  return `❌ "${city}" isn't being monitored.`;
 }
 
 /** Welcome message sent when the bot joins a group for the first time */
 export function msgWelcome(language: 'he' | 'en'): string {
   if (language === 'he') {
-    return `👋 יו, אני אקו. מחובר לפיקוד העורף ויודע בדיוק מתי לשלוח אתכם לממ"ד ומתי להוציא. כן, אני גם מדבר ועונה על שאלות — אז אל תתביישו.\n\nכדי להתחיל:\n• *!addcity* שם עיר — להוסיף עיר למעקב\n• *!help* — לכל הפקודות\n\nרוצים לדבר? כתבו *אקו* לפני כל שאלה 🤖`;
+    return `👋 שלום, אני אקו. מחובר למערכת ההתרעות של פיקוד העורף ואשלח עדכונים בזמן אמת — כניסה למרחב מוגן ויציאה ממנו. אני גם עונה על שאלות.\n\nכדי להתחיל:\n• *!addcity* שם עיר — להוסיף עיר למעקב\n• *!help* — לכל הפקודות\n\nלשאלות, כתבו *אקו* לפני ההודעה 🤖`;
   }
-  return `👋 Yo, I'm Echo. Connected to the Pikud HaOref alert system — I know exactly when to send you to shelter and when to let you out. Yes, I also talk and answer questions — don't be shy.\n\nTo get started:\n• *!addcity* city name — add a city to watch\n• *!help* — see all commands\n\nWanna chat? Just write *echo* before any question 🤖`;
+  return `👋 Hi, I'm Echo. Connected to the Pikud HaOref alert system — I'll send real-time updates when to go to shelter and when it's safe to leave. I also answer questions.\n\nTo get started:\n• *!addcity* city name — add a city to watch\n• *!help* — see all commands\n\nFor questions, write *echo* before your message 🤖`;
 }
 
 /** Language changed confirmation */
 export function msgLanguageChanged(language: 'he' | 'en'): string {
   if (language === 'he') {
-    return `✅ עברית, כמו שצריך 🇮🇱`;
+    return `✅ השפה הוגדרה לעברית 🇮🇱`;
   }
-  return `✅ English it is. I'm fluent in both, obviously 🇬🇧`;
+  return `✅ Language set to English 🇬🇧`;
 }

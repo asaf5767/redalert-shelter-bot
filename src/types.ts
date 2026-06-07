@@ -46,6 +46,8 @@ export interface GroupSettings {
   activitiesEnabled?: boolean;
   /** Total cumulative milliseconds spent in shelter since bot joined */
   totalShelterTimeMs?: number;
+  /** Whether to send daily Sefirat HaOmer reminders at 8pm Israel time */
+  omerEnabled?: boolean;
 }
 
 /** Configuration for a single WhatsApp group's alert monitoring */
