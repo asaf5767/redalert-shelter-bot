@@ -201,7 +201,13 @@ export async function connectToWhatsApp(
       console.log('  Scan this QR code with WhatsApp:');
       console.log('========================================\n');
       qrcode.generate(qr, { small: true });
-      console.log('\nOpen WhatsApp > Settings > Linked Devices > Link a Device\n');
+      // Also print the raw QR payload as plain ASCII. Railway's log viewer
+      // mangles the block-character QR above; this single-line string can
+      // be copy-pasted into any QR generator to produce a scannable image.
+      console.log('\n--- RAW QR STRING (copy this single line) ---');
+      console.log(qr);
+      console.log('--- END RAW QR STRING ---\n');
+      console.log('Open WhatsApp > Settings > Linked Devices > Link a Device\n');
     }
 
     // Connected successfully
