@@ -75,18 +75,28 @@ async function readAuthData(key: string): Promise<any | null> {
   }
 
   try {
+    // maybeSingle (not single) — Baileys polls for many keys that don't yet
+    // exist (fresh pre-keys, sessions for chats we haven't seen, etc.).
+    // .single() treats "no rows" as a hard error (PGRST116), spamming the
+    // logs with "Supabase read error" for what is normal operation.
+    // .maybeSingle() returns { data: null, error: null } in that case.
     const { data, error } = await supabase
       .from(AUTH_TABLE)
       .select('value')
       .eq('key', key)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      log.error({ error: error.message, code: error.code, key }, 'Supabase read error');
+      log.error(
+        { key, code: error.code, message: error.message, details: error.details, hint: error.hint },
+        'Supabase read error'
+      );
       return null;
     }
     if (!data) {
-      log.warn({ key }, 'No data found for auth key');
+      // Expected when Baileys asks for a key we haven't stored yet.
+      // Debug level so it doesn't flood the logs during normal operation.
+      log.debug({ key }, 'No data found for auth key (expected for fresh keys)');
       return null;
     }
     return JSON.parse(data.value, BufferJSON.reviver);
@@ -112,10 +122,40 @@ async function writeAuthData(key: string, value: any): Promise<void> {
       );
 
     if (error) {
-      log.error({ error, key }, 'Error writing auth data');
+      // Flatten the PostgREST error object so the underlying cause
+      // (RLS denial, missing table, bad key, etc.) actually shows up in logs
+      // instead of being swallowed as "[object Object]".
+      log.error(
+        {
+          key,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          valueBytes: serialized.length,
+        },
+        'Error writing auth data'
+      );
+
+      // Common cause: RLS is enabled on whatsapp_auth_state but no policy
+      // allows the anon key to insert/update. Surface a clear, one-line fix.
+      if (
+        error.code === '42501' ||
+        error.message?.toLowerCase().includes('row-level security') ||
+        error.message?.toLowerCase().includes('permission denied')
+      ) {
+        log.error(
+          'RLS is blocking auth writes. Either disable RLS on the table:\n' +
+          '  ALTER TABLE whatsapp_auth_state DISABLE ROW LEVEL SECURITY;\n' +
+          'or use the service_role key in SUPABASE_KEY instead of the anon key.'
+        );
+      }
     }
-  } catch (err) {
-    log.error({ err, key }, 'Error writing auth data');
+  } catch (err: any) {
+    log.error(
+      { key, err: err?.message ?? String(err), stack: err?.stack },
+      'Error writing auth data (exception)'
+    );
   }
 }
 
